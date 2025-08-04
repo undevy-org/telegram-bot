@@ -98,27 +98,66 @@ function extractAccessCode(visit) {
 function extractVisitedPages(visit) {
   if (!visit.actionDetails) return [];
   
-  return visit.actionDetails
-    .filter(action => action.type === 'action' && action.url)
-    .map(action => {
-      const url = action.url;
-      
-      // Try to get from hash
-      const hashMatch = url.match(/#([^&?\s]+)/);
+  const pages = [];
+  const seenUrls = new Set(); // To avoid duplicates
+  
+  visit.actionDetails.forEach(action => {
+    // Only process page views (not downloads, outlinks, etc.)
+    if (action.type !== 'action' || !action.url) return;
+    
+    // Create a unique key for this page view
+    const urlKey = action.url;
+    
+    // Skip if we've already seen this exact URL in sequence
+    if (pages.length > 0 && pages[pages.length - 1].url === urlKey) {
+      return;
+    }
+    
+    // Extract page name from different sources
+    let pageName = 'Unknown Page';
+    
+    // First, try to use the page title if it's meaningful
+    if (action.pageTitle && !action.pageTitle.includes('Undevy Portfolio')) {
+      pageName = action.pageTitle;
+    } 
+    // Then, try to extract from URL hash
+    else if (action.url.includes('#')) {
+      const hashMatch = action.url.match(/#([^&?\s]+)/);
       if (hashMatch && hashMatch[1]) {
-        return hashMatch[1];
+        // Convert hash to readable format
+        const screenName = hashMatch[1];
+        const screenTitles = {
+          Entry: 'Entry - Authentication',
+          MainHub: 'Main Hub - Navigation',
+          Introduction: 'Introduction - About Me',
+          Timeline: 'Timeline - Experience',
+          RoleDetail: 'Role Detail',
+          CaseList: 'Case Studies - List',
+          CaseDetail: 'Case Study - Detail',
+          SkillsGrid: 'Skills - Overview',
+          SkillDetail: 'Skill - Detail',
+          SideProjects: 'Side Projects',
+          Contact: 'Contact Information'
+        };
+        pageName = screenTitles[screenName] || screenName;
       }
-      
-      // Check if it's the main page with code
-      if (url.includes('?code=') && !url.includes('#')) {
-        return 'Entry';
+    }
+    // Check if it's the main page
+    else if (action.url.includes('?code=') && !action.url.includes('#')) {
+      pageName = 'Entry - Authentication';
       }
-      
-      // Default to page title if available
-      return action.pageTitle || 'Unknown';
-    })
+    // Fall back to page title
+    else if (action.pageTitle) {
+      pageName = action.pageTitle;
+    }
+    
+    pages.push({ name: pageName, url: urlKey });
+  });
+  
+  // Return just the page names, removing consecutive duplicates
+  return pages
+    .map(p => p.name)
     .filter((page, index, self) => {
-      // Remove consecutive duplicates
       return index === 0 || page !== self[index - 1];
     });
 }

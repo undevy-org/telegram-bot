@@ -61,6 +61,52 @@ const handleAnalyticsStart = withErrorHandling(async (ctx) => {
 });
 
 /**
+ * Handles /analytics_stats command
+ * Shows monitoring statistics
+ */
+const handleAnalyticsStats = withErrorHandling(async (ctx) => {
+  if (!analyticsMonitor) {
+    return await ctx.reply(`${EMOJI.ERROR} Analytics monitor not initialized.`);
+  }
+  
+  const stats = analyticsMonitor.getStats();
+  
+  const message = [
+    `${EMOJI.ANALYTICS} *Analytics Monitor Statistics*`,
+    '',
+    `Status: ${stats.isRunning ? '🟢 Running' : '🔴 Stopped'}`,
+    `Checks performed: ${stats.checksPerformed}`,
+    `Notifications sent: ${stats.notificationsSent}`,
+    `Tracked visits: ${stats.notifiedVisitsCount}`,
+    `Errors: ${stats.errors}`,
+    '',
+    stats.lastCheckTime 
+      ? `Last check: ${escapeMarkdown(formatDate(stats.lastCheckTime))}`
+      : 'Last check: Never'
+  ].join('\n');
+  
+  await ctx.reply(message, { parse_mode: 'MarkdownV2' });
+});
+
+/**
+ * Handles /analytics_clear command
+ * Clears visit history (for debugging)
+ */
+const handleAnalyticsClear = withErrorHandling(async (ctx) => {
+  if (!analyticsMonitor) {
+    return await ctx.reply(`${EMOJI.ERROR} Analytics monitor not initialized.`);
+  }
+  
+  const clearedCount = analyticsMonitor.clearHistory();
+  
+  await ctx.reply(
+    `${EMOJI.SUCCESS} Cleared ${clearedCount} visits from history\\. ` +
+    `Next check will re\\-notify about all visits\\.`,
+    { parse_mode: 'MarkdownV2' }
+  );
+});
+
+/**
  * Handles /recent_visits command
  * Shows last 5 visits with details
  */
@@ -142,6 +188,7 @@ const handleDebugVisits = withErrorHandling(async (ctx) => {
   
   visits.forEach((visit, index) => {
     message += `Visit ${index + 1}:\n`;
+    message += `- ID: ${visit.idVisit}\n`;
     message += `- Server time: ${visit.serverTimePretty}\n`;
     message += `- Timestamp: ${new Date(visit.serverTimestamp * 1000).toISOString()}\n`;
     message += `- Custom dims: ${JSON.stringify(visit.customDimensions || {})}\n`;
@@ -163,6 +210,8 @@ module.exports = {
   handleAnalytics,
   handleAnalyticsStop,
   handleAnalyticsStart,
+  handleAnalyticsStats,
+  handleAnalyticsClear,
   handleRecentVisits,
   handleTestMatomo,
   handleDebugVisits

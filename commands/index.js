@@ -36,6 +36,8 @@ function registerCommands(bot) {
   bot.command('analytics', analyticsCommands.handleAnalytics);
   bot.command('analytics_stop', analyticsCommands.handleAnalyticsStop);
   bot.command('analytics_start', analyticsCommands.handleAnalyticsStart);
+  bot.command('analytics_stats', analyticsCommands.handleAnalyticsStats);
+  bot.command('analytics_clear', analyticsCommands.handleAnalyticsClear);
   bot.command('recent_visits', analyticsCommands.handleRecentVisits);
   bot.command('test_matomo', analyticsCommands.handleTestMatomo);
   bot.command('debug_visits', analyticsCommands.handleDebugVisits);

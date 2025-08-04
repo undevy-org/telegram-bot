@@ -2,9 +2,10 @@
 
 const { InlineKeyboard, InputFile } = require('grammy');
 const { EMOJI } = require('../config/constants');
-const { escapeMarkdown, truncateText, parseBackupName } = require('../utils/format');
+const { escapeMarkdown, truncateText } = require('../utils/format');
 const { getContent } = require('../services/api');
-const { getBackupFiles, loadBackup, findDifferences } = require('../services/backup');
+const { getBackupFiles, parseBackupName } = require('../utils/helpers');
+const { loadBackup, findDifferences } = require('../services/backup');
 const { findProfilesUsingCase } = require('../utils/validators');
 const { withErrorHandling } = require('../handlers/errors');
 const stateManager = require('../stateManager');
