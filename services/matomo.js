@@ -70,23 +70,27 @@ async function testConnection() {
  */
 
 function extractAccessCode(visit) {
-  if (Array.isArray(visit.customDimensions)) {
+  // Primary method: check custom dimensions
+  if (Array.isArray(visit.customDimensions) && visit.customDimensions.length > 0) {
     const dim = visit.customDimensions.find(d => d.idDimension === '1');
-    if (dim?.value) return dim.value;
-  }
-  
-  // Fallback to URL parameter
-  const firstAction = visit.actionDetails?.find(
-    action => action.url && action.url.includes('code=')
-  );
-  
-  if (firstAction) {
-    const urlMatch = firstAction.url.match(/[?&]code=([^&#]+)/);
-    if (urlMatch) {
-      return urlMatch[1];
+    if (dim && dim.value) {
+      return dim.value;
     }
   }
-  
+
+  // Fallback to URL parameter
+  if (Array.isArray(visit.actionDetails)) {
+    const firstActionWithCode = visit.actionDetails.find(
+      action => action.url && action.url.includes('code=')
+    );
+    if (firstActionWithCode) {
+      const urlMatch = firstActionWithCode.url.match(/[?&]code=([^&#]+)/);
+      if (urlMatch && urlMatch[1]) {
+        return urlMatch[1];
+      }
+    }
+  }
+
   return null;
 }
 
@@ -96,33 +100,36 @@ function extractAccessCode(visit) {
  * @returns {Array} - Array of page names
  */
 function extractVisitedPages(visit) {
-  if (!visit.actionDetails) return [];
-  
+  // Add a check for visit.actionDetails to prevent errors
+  if (!Array.isArray(visit.actionDetails)) {
+    return ['Entry']; // Or return an empty array, depending on desired behavior
+  }
+
   const pages = [];
   const seenUrls = new Set(); // To avoid duplicates
-  
+
   visit.actionDetails.forEach(action => {
-    // Only process page views (not downloads, outlinks, etc.)
-    if (action.type !== 'action' || !action.url) return;
-    
-    // Create a unique key for this page view
-    const urlKey = action.url;
-    
-    // Skip if we've already seen this exact URL in sequence
-    if (pages.length > 0 && pages[pages.length - 1].url === urlKey) {
+    // Ensure action is an object and has a URL
+    if (typeof action !== 'object' || action === null || !action.url || action.type !== 'action') {
       return;
     }
-    
-    // Extract page name from different sources
+
+    const urlKey = action.url;
+
+    // Skip if we've already seen this exact URL in sequence
+    if (pages.length > 0 && pages[pages.length - 1] === urlKey) {
+      return;
+    }
+
     let pageName = 'Unknown Page';
-    
-    // First, try to use the page title if it's meaningful
-    if (action.pageTitle && !action.pageTitle.includes('Undevy Portfolio')) {
+
+    // First, try to use the page title if it's meaningful and exists
+    if (action.pageTitle && typeof action.pageTitle === 'string' && !action.pageTitle.includes('Undevy Portfolio')) {
       pageName = action.pageTitle;
-    } 
+    }
     // Then, try to extract from URL hash
     else if (action.url.includes('#')) {
-      const hashMatch = action.url.match(/#([^&?\s]+)/);
+      const hashMatch = action.url.match(/#([^&?\\s]+)/);
       if (hashMatch && hashMatch[1]) {
         // Convert hash to readable format
         const screenName = hashMatch[1];
@@ -145,18 +152,20 @@ function extractVisitedPages(visit) {
     // Check if it's the main page
     else if (action.url.includes('?code=') && !action.url.includes('#')) {
       pageName = 'Entry - Authentication';
-      }
+    }
     // Fall back to page title
-    else if (action.pageTitle) {
+    else if (action.pageTitle && typeof action.pageTitle === 'string') {
       pageName = action.pageTitle;
     }
-    
-    pages.push({ name: pageName, url: urlKey });
+
+    // Only add to pages if pageName is not null or undefined
+    if (pageName) {
+      pages.push(pageName);
+    }
   });
-  
+
   // Return just the page names, removing consecutive duplicates
   return pages
-    .map(p => p.name)
     .filter((page, index, self) => {
       return index === 0 || page !== self[index - 1];
     });

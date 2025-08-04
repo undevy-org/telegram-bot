@@ -2,14 +2,15 @@
 
 const { EMOJI } = require('../config/constants');
 
-
 /**
- * Escapes special characters in text for Telegram Markdown.
- * @param {string} text 
+ * Escapes special characters in text for Telegram MarkdownV2.
+ * @param {string | null | undefined} text 
  * @returns {string}
  */
 function escapeMarkdown(text) {
-  if (text === null || text === undefined) return '';
+  if (text === null || typeof text === 'undefined') {
+    return ''; // Return an empty string for null or undefined
+  }
   return String(text).replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
 }
 
