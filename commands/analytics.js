@@ -2,7 +2,7 @@
 
 const { EMOJI } = require('../config/constants');
 const { escapeMarkdown, formatDate } = require('../utils/format');
-const { getRecentVisits, testConnection, formatVisitData } = require('../services/matomo');
+const { getRecentVisits, testConnection, formatVisitData, extractAccessCode } = require('../services/matomo');
 const { withErrorHandling } = require('../handlers/errors');
 
 // Analytics monitor instance (will be set from main bot.js)
@@ -205,6 +205,61 @@ const handleDebugVisits = withErrorHandling(async (ctx) => {
   await ctx.reply(message);
 });
 
+/**
+ * Handles /debug_dimensions command
+ * Shows raw custom dimensions data
+ */
+const handleDebugDimensions = withErrorHandling(async (ctx) => {
+  await ctx.reply(`🔍 Fetching visits with custom dimensions...`);
+  
+  const visits = await getRecentVisits(3);
+  
+  if (!visits || visits.length === 0) {
+    return await ctx.reply(`${EMOJI.INFO} No visits found today.`);
+  }
+  
+  let message = `**Custom Dimensions Debug:**\n\n`;
+  
+  visits.forEach((visit, index) => {
+    message += `**Visit ${index + 1}:**\n`;
+    
+    // Show raw customDimensions data
+    if (visit.customDimensions) {
+      message += `CustomDimensions exists: YES\n`;
+      message += `Type: ${typeof visit.customDimensions}\n`;
+      message += `Is Array: ${Array.isArray(visit.customDimensions)}\n`;
+      message += `Raw data: ${JSON.stringify(visit.customDimensions, null, 2)}\n`;
+    } else {
+      message += `CustomDimensions exists: NO\n`;
+    }
+    
+    // Also check customVariables
+    if (visit.customVariables) {
+      message += `CustomVariables exists: YES\n`;
+      message += `Data: ${JSON.stringify(visit.customVariables, null, 2)}\n`;
+    }
+    
+    // Show what we extract
+    const extractedCode = extractAccessCode(visit);
+    message += `Extracted code: ${extractedCode || 'NONE'}\n`;
+    
+    // Show first action URL
+    const firstAction = visit.actionDetails?.[0];
+    if (firstAction?.url) {
+      message += `First URL: ${firstAction.url}\n`;
+    }
+    
+    message += `\n---\n\n`;
+  });
+  
+  // Truncate if too long
+  if (message.length > 3500) {
+    message = message.substring(0, 3500) + '\n\n(Truncated)';
+  }
+  
+  await ctx.reply(message);
+});
+
 module.exports = {
   setAnalyticsMonitor,
   handleAnalytics,
@@ -214,5 +269,6 @@ module.exports = {
   handleAnalyticsClear,
   handleRecentVisits,
   handleTestMatomo,
-  handleDebugVisits
+  handleDebugVisits,
+  handleDebugDimensions
 };

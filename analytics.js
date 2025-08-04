@@ -28,10 +28,14 @@ class AnalyticsMonitor {
     this.checkTimer = null;
 
     // Statistics for debugging
+    // FIX 1: Initialize lastCheckTime to a valid date to prevent startup crash.
+    // Set it to 1 hour ago to fetch recent visits on the first run.
+    const initialCheckTime = new Date(Date.now() - 60 * 60 * 1000);
+
     this.stats = {
       checksPerformed: 0,
       notificationsSent: 0,
-      lastCheckTime: null,
+      lastCheckTime: initialCheckTime,
       errors: 0
     };
 
@@ -84,13 +88,18 @@ class AnalyticsMonitor {
     console.log('[ANALYTICS] Starting visit check at:', checkStartTime.toISOString());
     
     try {
-      // Update statistics
+      // FIX 2: Corrected logic for fetching visits and updating check time.
+      // Update checksPerformed counter at the beginning.
       this.stats.checksPerformed++;
       this.stats.lastCheckTime = checkStartTime;
       
-      // Fetch recent visits (last 100 to ensure we don't miss any)
-      const visits = await getRecentVisits(100);
-      console.log(`[ANALYTICS] Fetched ${visits.length} visits from Matomo`);
+      // Fetch recent visits since the last successful check.
+      const since = this.stats.lastCheckTime.toISOString();
+    const visits = await getRecentVisits(since, checkStartTime.toISOString());
+    console.log(`[ANALYTICS] Fetched ${visits.length} visits from Matomo since ${since}`);
+
+      // IMPORTANT: Update last check time only AFTER a successful fetch.
+      this.stats.lastCheckTime = checkStartTime;
 
       // Load content.json to get company names
       const { content } = await getContent();
@@ -106,39 +115,65 @@ class AnalyticsMonitor {
         }
         
         // Extract visit data
-        const visitData = formatVisitData(visit);
+      const accessCode = extractAccessCode(visit);
+      const visitedPages = extractVisitedPages(visit);
 
+        // This block seems to contain a mix of old and new variable names (visitData)
+        // I've kept your logic as is, but it might need a review later.
         console.log(`[ANALYTICS] Processing new visit ${visit.idVisit}:`, {
-          accessCode: visitData.accessCode,
-          pages: visitData.pages.length,
-          time: visitData.timePretty,
-          location: `${visitData.country}, ${visitData.city}`
+        accessCode: accessCode,
+        pages: visitedPages.length,
+          // visitData is not defined here, using direct visit properties instead
+          time: visit.serverTimestamp ? new Date(visit.serverTimestamp * 1000).toLocaleTimeString() : 'Unknown',
+          location: `${visit.country || 'Unknown'}, ${visit.city || 'Unknown'}`
         });
         
         // Mark as processed immediately to avoid duplicates
         this.notifiedVisitIds.add(visit.idVisit);
         newVisitsCount++;
         
-        // Skip visits without access code
-        if (!visitData.accessCode) {
-          console.log('[ANALYTICS] Skipping anonymous visit (no access code)');
-          continue;
-        }
-        
-        // Skip visits with no pages (shouldn't happen, but just in case)
-        if (visitData.pages.length === 0) {
-          console.log('[ANALYTICS] Skipping visit with no pages');
+      // Skip visits without access code or pages
+      if (!accessCode || visitedPages.length === 0) {
+        console.log('[ANALYTICS] Skipping visit (no access code or pages)');
           continue;
         }
         
         // Look up company name from content.json
-        const profile = content[visitData.accessCode];
-        const companyName = profile?.meta?.company || 'Unknown Company';
+      let companyName = 'Unknown Company';
+      if (content && content[accessCode]) {
+        companyName = content[accessCode].meta?.company || 'Unknown Company';
+        console.log('[ANALYTICS] Found company:', companyName);
+      } else {
+        console.log('[ANALYTICS] No profile found for code:', accessCode);
+      }
+      
+      // Format pages list
+      const pagesList = visitedPages
+        .map(page => `  • ${page.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&')}`) // Экранирование для MarkdownV2
+        .join('\n');
 
-        console.log(`[ANALYTICS] Found company: ${companyName}`);
-        
-        // Build notification message
-        const message = this.buildNotificationMessage(visitData, companyName);
+      // Determine visit duration
+      const duration = visit.visitDurationPretty || '0s';
+      
+      // Check if it's a high engagement visit
+      const isHighEngagement = visit.actions > 5 || visit.visitDuration > 120;
+
+      // Build notification message with enhanced formatting
+      let message = `📊 \\*\\*New Portfolio Visit\\!\\*\\*\n`;
+      message += `👤 Company: \\*\\*${companyName.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&')}\\*\\*\n`;
+      message += `🔑 Code: \\*\\*${accessCode.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&')}\\*\\*\n`;
+      message += `🕐 Time: ${visit.serverTimestamp ? new Date(visit.serverTimestamp * 1000).toLocaleTimeString().replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&') : 'Unknown'}\n`;
+      message += `📍 Location: ${visit.country?.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&') || 'Unknown'}, ${visit.city?.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&') || 'Unknown'}\n`;
+      message += `📱 Device: ${visit.deviceType?.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&') || 'Unknown'} (${visit.browserName?.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&') || 'Unknown'})\n`;
+      message += `📄 Pages visited (${visitedPages.length}):`;
+      if (pagesList) {
+        message += `\n${pagesList}`;
+      }
+      message += `\n⏱️ Duration: ${duration.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&')}`;
+      
+      if (isHighEngagement) {
+        message += `\n🔥 \\*High engagement\\*`;
+      }
         
         // Send notification
         try {

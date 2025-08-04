@@ -41,6 +41,7 @@ function registerCommands(bot) {
   bot.command('recent_visits', analyticsCommands.handleRecentVisits);
   bot.command('test_matomo', analyticsCommands.handleTestMatomo);
   bot.command('debug_visits', analyticsCommands.handleDebugVisits);
+  bot.command('debug_dimensions', analyticsCommands.handleDebugDimensions);
   
   console.log('[COMMANDS] All commands registered successfully');
 }
