@@ -86,31 +86,41 @@ class AnalyticsMonitor {
   async checkVisits() {
     const checkStartTime = new Date();
     console.log('[ANALYTICS] Starting visit check at:', checkStartTime.toISOString());
-    
     try {
       // FIX 2: Corrected logic for fetching visits and updating check time.
       // Update checksPerformed counter at the beginning.
       this.stats.checksPerformed++;
-      this.stats.lastCheckTime = checkStartTime;
+      
+      // Log the time window for debugging
+      const since = this.stats.lastCheckTime.toISOString();
+      const nowIso = checkStartTime.toISOString();
+      console.log('[ANALYTICS] Checking for visits between:', since, 'and', nowIso);
       
       // Fetch recent visits since the last successful check.
-      const since = this.stats.lastCheckTime.toISOString();
-    const visits = await getRecentVisits(since, checkStartTime.toISOString());
+      const visits = await getRecentVisits(since, nowIso);
+      
     console.log(`[ANALYTICS] Fetched ${visits.length} visits from Matomo since ${since}`);
+      console.log('[ANALYTICS] Raw API response (first 2 visits):', JSON.stringify(visits.slice(0, 2), null, 2));
 
       // IMPORTANT: Update last check time only AFTER a successful fetch.
       this.stats.lastCheckTime = checkStartTime;
 
       // Load content.json to get company names
-      const { content } = await getContent();
-      console.log('[ANALYTICS] Loaded content.json');
+      const contentData = await getContent();
+      const content = contentData?.content; // Adjust based on actual getContent return structure
+      console.log('[ANALYTICS] Loaded content.json, has ', !!content);
 
       // Process each visit
       let newVisitsCount = 0;
-
+      if (!visits || visits.length === 0) {
+        console.log('[ANALYTICS] No visits to process');
+      } else {
       for (const visit of visits) {
+          console.log('[ANALYTICS] Processing visit ID:', visit.idVisit);
+          
         // Skip if we've already notified about this visit
         if (this.notifiedVisitIds.has(visit.idVisit)) {
+            console.log('[ANALYTICS] Skipping visit ID (already notified):', visit.idVisit);
           continue;
         }
         
@@ -118,12 +128,9 @@ class AnalyticsMonitor {
       const accessCode = extractAccessCode(visit);
       const visitedPages = extractVisitedPages(visit);
 
-        // This block seems to contain a mix of old and new variable names (visitData)
-        // I've kept your logic as is, but it might need a review later.
-        console.log(`[ANALYTICS] Processing new visit ${visit.idVisit}:`, {
+          console.log(`[ANALYTICS] Extracted data for visit ${visit.idVisit}:`, {
         accessCode: accessCode,
-        pages: visitedPages.length,
-          // visitData is not defined here, using direct visit properties instead
+            pagesCount: visitedPages.length,
           time: visit.serverTimestamp ? new Date(visit.serverTimestamp * 1000).toLocaleTimeString() : 'Unknown',
           location: `${visit.country || 'Unknown'}, ${visit.city || 'Unknown'}`
         });
@@ -140,16 +147,17 @@ class AnalyticsMonitor {
         
         // Look up company name from content.json
       let companyName = 'Unknown Company';
+          console.log('[ANALYTICS] Looking up content for code:', accessCode);
       if (content && content[accessCode]) {
         companyName = content[accessCode].meta?.company || 'Unknown Company';
         console.log('[ANALYTICS] Found company:', companyName);
       } else {
-        console.log('[ANALYTICS] No profile found for code:', accessCode);
+            console.log('[ANALYTICS] No profile found for code:', accessCode, '. Available keys:', Object.keys(content || {}));
       }
       
-      // Format pages list
+      // Format pages list using escapeMarkdown utility
       const pagesList = visitedPages
-        .map(page => `  • ${page.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&')}`) // Экранирование для MarkdownV2
+            .map(page => `  • ${escapeMarkdown(page)}`)
         .join('\n');
 
       // Determine visit duration
@@ -159,39 +167,38 @@ class AnalyticsMonitor {
       const isHighEngagement = visit.actions > 5 || visit.visitDuration > 120;
 
       // Build notification message with enhanced formatting
-      let message = `📊 \\*\\*New Portfolio Visit\\!\\*\\*\n`;
-      message += `👤 Company: \\*\\*${companyName.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&')}\\*\\*\n`;
-      message += `🔑 Code: \\*\\*${accessCode.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&')}\\*\\*\n`;
-      message += `🕐 Time: ${visit.serverTimestamp ? new Date(visit.serverTimestamp * 1000).toLocaleTimeString().replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&') : 'Unknown'}\n`;
-      message += `📍 Location: ${visit.country?.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&') || 'Unknown'}, ${visit.city?.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&') || 'Unknown'}\n`;
-      message += `📱 Device: ${visit.deviceType?.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&') || 'Unknown'} (${visit.browserName?.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&') || 'Unknown'})\n`;
-      message += `📄 Pages visited (${visitedPages.length}):`;
-      if (pagesList) {
-        message += `\n${pagesList}`;
-      }
-      message += `\n⏱️ Duration: ${duration.replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&')}`;
-      
-      if (isHighEngagement) {
-        message += `\n🔥 \\*High engagement\\*`;
-      }
+      // Use escapeMarkdown for ALL dynamic content to prevent parsing errors
+      let message = `📊 **New Portfolio Visit\\!**\n`;
+        message += `👤 Company: **${escapeMarkdown(companyName)}**\n`;
+        message += `🔑 Code: **${escapeMarkdown(accessCode)}**\n`;
+        message += `🕐 Time: ${escapeMarkdown(visit.serverTimestamp ? new Date(visit.serverTimestamp * 1000).toLocaleTimeString() : 'Unknown')}\n`;
+        message += `📍 Location: ${escapeMarkdown(visit.country || 'Unknown')}, ${escapeMarkdown(visit.city || 'Unknown')}\n`;
+        message += `📱 Device: ${escapeMarkdown(visit.deviceType || 'Unknown')} KATEX_INLINE_OPEN${escapeMarkdown(visit.browserName || 'Unknown')}KATEX_INLINE_CLOSE\n`;
+        message += `📄 Pages visited KATEX_INLINE_OPEN${visitedPages.length}KATEX_INLINE_CLOSE:\n`;
+        if (pagesList) {
+            message += `${pagesList}\n`;
+        }
+        message += `⏱️ Duration: ${escapeMarkdown(duration)}`;
+        if (isHighEngagement) {
+            message += `\n🔥 **High engagement**`;
+        }
         
         // Send notification
         try {
         await this.bot.api.sendMessage(this.adminUserId, message, {
             parse_mode: 'MarkdownV2'
           });
-          
           this.stats.notificationsSent++;
-          console.log('[ANALYTICS] Notification sent successfully');
+            console.log('[ANALYTICS] Notification sent successfully for visit:', visit.idVisit);
           
           // Small delay between notifications to avoid rate limits
-          if (newVisitsCount > 1) {
+            if (newVisitsCount < visits.length) { // Only delay if there are more visits to process
             await new Promise(resolve => setTimeout(resolve, 500));
           }
-          
         } catch (error) {
-          console.error('[ANALYTICS] Failed to send notification:', error);
+            console.error('[ANALYTICS] Failed to send notification for visit:', visit.idVisit, error);
           // Don't throw - continue processing other visits
+          }
         }
       }
       
@@ -205,11 +212,10 @@ class AnalyticsMonitor {
       
       // Log summary
       if (newVisitsCount > 0) {
-        console.log(`[ANALYTICS] Check completed: ${newVisitsCount} new visits found`);
+        console.log(`[ANALYTICS] Check completed: ${newVisitsCount} new visits found and processed`);
       } else {
         console.log('[ANALYTICS] Check completed: no new visits');
       }
-      
     } catch (error) {
       this.stats.errors++;
       console.error('[ANALYTICS] Error during visit check:', error);
@@ -226,6 +232,7 @@ class AnalyticsMonitor {
           );
           // Reset error counter after notification
           this.stats.errors = 0;
+          console.log('[ANALYTICS] Sent error notification to admin');
         } catch (notifyError) {
           console.error('[ANALYTICS] Failed to send error notification:', notifyError);
         }
@@ -244,37 +251,29 @@ class AnalyticsMonitor {
     
     // Build message parts
     const parts = [
-      `${EMOJI.ANALYTICS} *New Portfolio Visit\\!*`,
+    `${EMOJI.ANALYTICS} \\*New Portfolio Visit\\!*`,
       '',
-      `👤 *Company:* ${escapeMarkdown(companyName)}`,
-      `🔑 *Code:* \`${escapeMarkdown(visitData.accessCode)}\``,
-      `🕐 *Time:* ${escapeMarkdown(visitData.timePretty)}`,
-      `📍 *Location:* ${escapeMarkdown(visitData.country)}${visitData.city !== 'Unknown' ? ', ' + escapeMarkdown(visitData.city) : ''}`,
-      `📱 *Device:* ${escapeMarkdown(visitData.device)} \\(${escapeMarkdown(visitData.browser)}\\)`,
+    `👤 \\*Company:\\* ${escapeMarkdown(companyName)}`,
+    `🔑 \\*Code:\\* \`${escapeMarkdown(visitData.accessCode)}\``,
+    `🕐 \\*Time:\\* ${escapeMarkdown(visitData.timePretty)}`,
+    `📍 \\*Location:\\* ${escapeMarkdown(visitData.country)}${visitData.city !== 'Unknown' ? ', ' + escapeMarkdown(visitData.city) : ''}`,
+    `📱 Device: ${escapeMarkdown(visitData.device || 'Unknown')} \KATEX_INLINE_OPEN${escapeMarkdown(visitData.browser || 'Unknown')}\KATEX_INLINE_CLOSE`,
       '',
-      `📄 *Pages visited \\(${visitData.pages.length}\\):*`,
+    `📄 \\*Pages visited \KATEX_INLINE_OPEN${visitData.pages.length}\KATEX_INLINE_CLOSE:\\*`,
       pagesList
     ];
     
     // Add visit duration if available
     if (visitData.duration !== '0s') {
       parts.push('');
-      parts.push(`⏱️ *Duration:* ${escapeMarkdown(visitData.duration)}`);
+    parts.push(`⏱️ \\*Duration:\\* ${escapeMarkdown(visitData.duration)}`);
     }
     
     // Add special indicators
     const indicators = [];
-    
-    if (visitData.isFirstVisit) {
-      indicators.push('🆕 First visit');
-    }
-    
-    if (visitData.actionCount === 1) {
-      indicators.push('⚡ Bounced');
-    } else if (visitData.actionCount > 10) {
-      indicators.push('🔥 High engagement');
-    }
-    
+  if (visitData.isFirstVisit) indicators.push('🆕 First visit');
+  if (visitData.actionCount === 1) indicators.push('⚡ Bounced');
+  else if (visitData.actionCount > 10) indicators.push('🔥 High engagement');
     if (indicators.length > 0) {
       parts.push('');
       parts.push(indicators.map(i => escapeMarkdown(i)).join(' \\| '));
