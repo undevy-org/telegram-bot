@@ -190,7 +190,7 @@ class AnalyticsMonitor {
       // Fetch recent visits since the last successful check.
       const visits = await getRecentVisits(since, nowIso);
       
-    console.log(`[ANALYTICS] Fetched ${visits.length} visits from Matomo since ${since}`);
+      console.log(`[ANALYTICS] Fetched ${visits.length} visits from Matomo since ${since}`);
       
       // ENHANCED: Log complete structure of first visit for debugging
       if (visits.length > 0) {
@@ -214,7 +214,7 @@ class AnalyticsMonitor {
       if (!visits || visits.length === 0) {
         console.log('[ANALYTICS] No visits to process');
       } else {
-      for (const visit of visits) {
+        for (const visit of visits) {
           console.log('[ANALYTICS] Processing visit ID:', visit.idVisit);
           
           // ENHANCED: Log key properties for debugging
@@ -228,27 +228,27 @@ class AnalyticsMonitor {
             hasEvents: !!(visit.events && visit.events.length > 0)
           });
           
-        // Skip if we've already notified about this visit
-        if (this.notifiedVisitIds.has(visit.idVisit)) {
+          // Skip if we've already notified about this visit
+          if (this.notifiedVisitIds.has(visit.idVisit)) {
             console.log('[ANALYTICS] Skipping visit ID (already notified):', visit.idVisit);
-          continue;
-        }
-        
+            continue;
+          }
+          
           // ENHANCED: Use our enhanced extraction method
           const accessCode = this.extractAccessCodeEnhanced(visit);
-      const visitedPages = extractVisitedPages(visit);
+          const visitedPages = extractVisitedPages(visit);
 
           console.log(`[ANALYTICS] Extracted data for visit ${visit.idVisit}:`, {
-        accessCode: accessCode,
+            accessCode: accessCode,
             pagesCount: visitedPages.length,
-          time: visit.serverTimestamp ? new Date(visit.serverTimestamp * 1000).toLocaleTimeString() : 'Unknown',
-          location: `${visit.country || 'Unknown'}, ${visit.city || 'Unknown'}`
-        });
-        
-        // Mark as processed immediately to avoid duplicates
-        this.notifiedVisitIds.add(visit.idVisit);
-        newVisitsCount++;
-        
+            time: visit.serverTimestamp ? new Date(visit.serverTimestamp * 1000).toLocaleTimeString() : 'Unknown',
+            location: `${visit.country || 'Unknown'}, ${visit.city || 'Unknown'}`
+          });
+          
+          // Mark as processed immediately to avoid duplicates
+          this.notifiedVisitIds.add(visit.idVisit);
+          newVisitsCount++;
+          
           // ENHANCED: More flexible filtering - notify even for anonymous visits if requested
           if (!accessCode) {
             console.log('[ANALYTICS] Visit has no access code, marking as Anonymous');
@@ -288,62 +288,62 @@ class AnalyticsMonitor {
           // Skip visits without pages
           if (visitedPages.length === 0) {
             console.log('[ANALYTICS] Skipping visit (no pages)');
-          continue;
-        }
-        
-        // Look up company name from content.json
-      let companyName = 'Unknown Company';
-          console.log('[ANALYTICS] Looking up content for code:', accessCode);
-      if (content && content[accessCode]) {
-        companyName = content[accessCode].meta?.company || 'Unknown Company';
-        console.log('[ANALYTICS] Found company:', companyName);
-      } else {
-            console.log('[ANALYTICS] No profile found for code:', accessCode, '. Available keys:', Object.keys(content || {}));
-      }
-      
-      // Format pages list using escapeMarkdown utility
-      const pagesList = visitedPages
-            .map(page => `  • ${escapeMarkdown(page)}`)
-        .join('\n');
-
-      // Determine visit duration
-      const duration = visit.visitDurationPretty || '0s';
-      
-      // Check if it's a high engagement visit
-      const isHighEngagement = visit.actions > 5 || visit.visitDuration > 120;
-
-      // Build notification message with enhanced formatting
-      // Use escapeMarkdown for ALL dynamic content to prevent parsing errors
-      let message = `📊 **New Portfolio Visit\\!**\n`;
-        message += `👤 Company: **${escapeMarkdown(companyName)}**\n`;
-        message += `🔑 Code: **${escapeMarkdown(accessCode)}**\n`;
-        message += `🕐 Time: ${escapeMarkdown(visit.serverTimestamp ? new Date(visit.serverTimestamp * 1000).toLocaleTimeString() : 'Unknown')}\n`;
-        message += `📍 Location: ${escapeMarkdown(visit.country || 'Unknown')}, ${escapeMarkdown(visit.city || 'Unknown')}\n`;
-        message += `📱 Device: ${escapeMarkdown(visit.deviceType || 'Unknown')} KATEX_INLINE_OPEN${escapeMarkdown(visit.browserName || 'Unknown')}KATEX_INLINE_CLOSE\n`;
-        message += `📄 Pages visited KATEX_INLINE_OPEN${visitedPages.length}KATEX_INLINE_CLOSE:\n`;
-        if (pagesList) {
-            message += `${pagesList}\n`;
-        }
-        message += `⏱️ Duration: ${escapeMarkdown(duration)}`;
-        if (isHighEngagement) {
-            message += `\n🔥 **High engagement**`;
-        }
-        
-        // Send notification
-        try {
-        await this.bot.api.sendMessage(this.adminUserId, message, {
-            parse_mode: 'MarkdownV2'
-          });
-          this.stats.notificationsSent++;
-            console.log('[ANALYTICS] Notification sent successfully for visit:', visit.idVisit);
-          
-          // Small delay between notifications to avoid rate limits
-            if (newVisitsCount < visits.length) { // Only delay if there are more visits to process
-            await new Promise(resolve => setTimeout(resolve, 500));
+            continue;
           }
-        } catch (error) {
+          
+          // Look up company name from content.json
+          let companyName = 'Unknown Company';
+          console.log('[ANALYTICS] Looking up content for code:', accessCode);
+          if (content && content[accessCode]) {
+            companyName = content[accessCode].meta?.company || 'Unknown Company';
+            console.log('[ANALYTICS] Found company:', companyName);
+          } else {
+            console.log('[ANALYTICS] No profile found for code:', accessCode, '. Available keys:', Object.keys(content || {}));
+          }
+          
+          // Format pages list using escapeMarkdown utility
+          const pagesList = visitedPages
+            .map(page => `  • ${escapeMarkdown(page)}`)
+            .join('\n');
+
+          // Determine visit duration
+          const duration = visit.visitDurationPretty || '0s';
+          
+          // Check if it's a high engagement visit
+          const isHighEngagement = visit.actions > 5 || visit.visitDuration > 120;
+
+          // Build notification message with enhanced formatting
+          // Use escapeMarkdown for ALL dynamic content to prevent parsing errors
+          let message = `📊 **New Portfolio Visit\\!**\n`;
+          message += `👤 Company: **${escapeMarkdown(companyName)}**\n`;
+          message += `🔑 Code: **${escapeMarkdown(accessCode)}**\n`;
+          message += `🕐 Time: ${escapeMarkdown(visit.serverTimestamp ? new Date(visit.serverTimestamp * 1000).toLocaleTimeString() : 'Unknown')}\n`;
+          message += `📍 Location: ${escapeMarkdown(visit.country || 'Unknown')}, ${escapeMarkdown(visit.city || 'Unknown')}\n`;
+          message += `📱 Device: ${escapeMarkdown(visit.deviceType || 'Unknown')} \\(${escapeMarkdown(visit.browserName || 'Unknown')}\\)\n`;
+          message += `📄 Pages visited \\(${visitedPages.length}\\):\n`;
+          if (pagesList) {
+            message += `${pagesList}\n`;
+          }
+          message += `⏱️ Duration: ${escapeMarkdown(duration)}`;
+          if (isHighEngagement) {
+            message += `\n🔥 **High engagement**`;
+          }
+          
+          // Send notification
+          try {
+            await this.bot.api.sendMessage(this.adminUserId, message, {
+              parse_mode: 'MarkdownV2'
+            });
+            this.stats.notificationsSent++;
+            console.log('[ANALYTICS] Notification sent successfully for visit:', visit.idVisit);
+            
+            // Small delay between notifications to avoid rate limits
+            if (newVisitsCount < visits.length) { // Only delay if there are more visits to process
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          } catch (error) {
             console.error('[ANALYTICS] Failed to send notification for visit:', visit.idVisit, error);
-          // Don't throw - continue processing other visits
+            // Don't throw - continue processing other visits
           }
         }
       }
@@ -397,29 +397,29 @@ class AnalyticsMonitor {
     
     // Build message parts
     const parts = [
-    `${EMOJI.ANALYTICS} \\*New Portfolio Visit\\!*`,
+      `${EMOJI.ANALYTICS} \\*New Portfolio Visit\\!*`,
       '',
-    `👤 \\*Company:\\* ${escapeMarkdown(companyName)}`,
-    `🔑 \\*Code:\\* \`${escapeMarkdown(visitData.accessCode)}\``,
-    `🕐 \\*Time:\\* ${escapeMarkdown(visitData.timePretty)}`,
-    `📍 \\*Location:\\* ${escapeMarkdown(visitData.country)}${visitData.city !== 'Unknown' ? ', ' + escapeMarkdown(visitData.city) : ''}`,
-    `📱 Device: ${escapeMarkdown(visitData.device || 'Unknown')} \KATEX_INLINE_OPEN${escapeMarkdown(visitData.browser || 'Unknown')}\KATEX_INLINE_CLOSE`,
+      `👤 \\*Company:\\* ${escapeMarkdown(companyName)}`,
+      `🔑 \\*Code:\\* \`${escapeMarkdown(visitData.accessCode)}\``,
+      `🕐 \\*Time:\\* ${escapeMarkdown(visitData.timePretty)}`,
+      `📍 \\*Location:\\* ${escapeMarkdown(visitData.country)}${visitData.city !== 'Unknown' ? ', ' + escapeMarkdown(visitData.city) : ''}`,
+      `📱 Device: ${escapeMarkdown(visitData.device || 'Unknown')} \\(${escapeMarkdown(visitData.browser || 'Unknown')}\\)`,
       '',
-    `📄 \\*Pages visited \KATEX_INLINE_OPEN${visitData.pages.length}\KATEX_INLINE_CLOSE:\\*`,
+      `📄 \\*Pages visited \\(${visitData.pages.length}\\):\\*`,
       pagesList
     ];
     
     // Add visit duration if available
     if (visitData.duration !== '0s') {
       parts.push('');
-    parts.push(`⏱️ \\*Duration:\\* ${escapeMarkdown(visitData.duration)}`);
+      parts.push(`⏱️ \\*Duration:\\* ${escapeMarkdown(visitData.duration)}`);
     }
     
     // Add special indicators
     const indicators = [];
-  if (visitData.isFirstVisit) indicators.push('🆕 First visit');
-  if (visitData.actionCount === 1) indicators.push('⚡ Bounced');
-  else if (visitData.actionCount > 10) indicators.push('🔥 High engagement');
+    if (visitData.isFirstVisit) indicators.push('🆕 First visit');
+    if (visitData.actionCount === 1) indicators.push('⚡ Bounced');
+    else if (visitData.actionCount > 10) indicators.push('🔥 High engagement');
     if (indicators.length > 0) {
       parts.push('');
       parts.push(indicators.map(i => escapeMarkdown(i)).join(' \\| '));
