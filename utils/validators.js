@@ -1,5 +1,3 @@
-// telegram-bot/utils/validators.js
-
 /**
  * Validates case ID format
  * @param {string} id - Case ID to validate

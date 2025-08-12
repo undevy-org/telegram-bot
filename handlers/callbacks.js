@@ -1,5 +1,3 @@
-// telegram-bot/handlers/callbacks.js
-
 const { InlineKeyboard } = require('grammy');
 const { EMOJI } = require('../config/constants');
 const { escapeMarkdown } = require('../utils/format');

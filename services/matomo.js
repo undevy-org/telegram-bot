@@ -1,5 +1,3 @@
-// telegram-bot/services/matomo.js
-
 const fetch = require('node-fetch');
 const { MATOMO_URL, MATOMO_SITE_ID, MATOMO_TOKEN } = require('../config/constants');
 

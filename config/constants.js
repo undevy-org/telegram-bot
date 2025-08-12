@@ -1,5 +1,3 @@
-// telegram-bot/config/constants.js
-
 module.exports = {
   // Environment variables
   TOKEN: process.env.TELEGRAM_BOT_TOKEN,

@@ -1,5 +1,3 @@
-// telegram-bot/commands/analytics.js
-
 const { EMOJI } = require('../config/constants');
 const { escapeMarkdown, formatDate } = require('../utils/format');
 const { getRecentVisits, testConnection, formatVisitData, extractAccessCode } = require('../services/matomo');
@@ -119,11 +117,9 @@ const handleRecentVisits = withErrorHandling(async (ctx) => {
     return await ctx.reply(`${EMOJI.INFO} No visits found today.`);
   }
   
-  // Process and display each visit
   for (const visit of visits) {
     const visitData = formatVisitData(visit);
     
-    // Build message
     let message = visitData.accessCode 
       ? `${EMOJI.VISIT} *Visit with code:* \`${escapeMarkdown(visitData.accessCode)}\`\n`
       : `${EMOJI.ANONYMOUS} *Anonymous visit*\n`;

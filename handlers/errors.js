@@ -1,5 +1,3 @@
-// telegram-bot/handlers/errors.js
-
 const { GrammyError, HttpError } = require('grammy');
 const { EMOJI } = require('../config/constants');
 const { escapeMarkdown } = require('../utils/format');

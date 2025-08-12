@@ -1,5 +1,3 @@
-// telegram-bot/commands/index.js
-
 // Import all command modules
 const systemCommands = require('./system');
 const contentCommands = require('./content');

@@ -1,5 +1,3 @@
-// telegram-bot/commands/content.js
-
 const { InlineKeyboard, InputFile } = require('grammy');
 const { EMOJI } = require('../config/constants');
 const { escapeMarkdown, truncateText } = require('../utils/format');
@@ -87,17 +85,14 @@ const handlePreview = withErrorHandling(async (ctx) => {
   
   const caseDetails = content.GLOBAL_DATA?.case_details?.[caseId];
   
-  // Build preview message
   let message = `🔍 *Preview: ${escapeMarkdown(caseStudy.title || 'Untitled')}*\n\n`;
   
-  // Basic info
   message += `*📋 Basic Information:*\n`;
   message += `• ID: \`${escapeMarkdown(caseId)}\`\n`;
   message += `• Description: ${escapeMarkdown(caseStudy.desc || 'Not set')}\n`;
   message += `• Metrics: ${escapeMarkdown(caseStudy.metrics || 'Not set')}\n`;
   message += `• Tags: ${escapeMarkdown(caseStudy.tags?.join(', ') || 'No tags')}\n\n`;
   
-  // Detailed content
   if (caseDetails) {
     message += `*📖 Detailed Content:*\n\n`;
     
@@ -142,7 +137,6 @@ const handlePreview = withErrorHandling(async (ctx) => {
 const handleAddCase = withErrorHandling(async (ctx) => {
   const userId = ctx.from.id;
   
-  // Check for active conversation
   if (stateManager.hasActiveState(userId)) {
     return await ctx.reply(
       `${EMOJI.WARNING} You already have an active session. ` +
@@ -150,7 +144,6 @@ const handleAddCase = withErrorHandling(async (ctx) => {
     );
   }
   
-  // Initialize conversation state
   stateManager.initUserState(userId);
   stateManager.updateUserState(userId, {
     command: 'add_case',
@@ -169,7 +162,6 @@ const handleAddCase = withErrorHandling(async (ctx) => {
     }
   });
   
-  // Send first step
   const message = `${EMOJI.NEW} *New Case Creation*\n\n` +
     `📝 Step 1/10: *Enter a unique case ID*\n\n` +
     `ID requirements:\n` +
@@ -190,7 +182,6 @@ const handleEditCase = withErrorHandling(async (ctx) => {
   const args = ctx.message.text.split(' ').slice(1);
   const caseId = args[0];
   
-  // Check for active conversation
   if (stateManager.hasActiveState(userId)) {
     return await ctx.reply(
       `${EMOJI.WARNING} You already have an active dialog\\. ` +
@@ -275,7 +266,6 @@ const handleDeleteCase = withErrorHandling(async (ctx) => {
     );
   }
   
-  // Load case for preview
   const { content } = await getContent();
   const caseBasic = content.GLOBAL_DATA?.case_studies?.[caseId];
   
@@ -286,10 +276,8 @@ const handleDeleteCase = withErrorHandling(async (ctx) => {
     );
   }
   
-  // Check usage in profiles
   const usedInProfiles = findProfilesUsingCase(content, caseId);
   
-  // Build preview message
   let previewMessage = `${EMOJI.DELETE} *Delete Case Preview*\n\n`;
   previewMessage += `⚠️ *You are about to delete:*\n\n`;
   previewMessage += `📋 *Case Information:*\n`;
@@ -306,7 +294,6 @@ const handleDeleteCase = withErrorHandling(async (ctx) => {
   previewMessage += `❗ *This action cannot be undone\\!*\n\n`;
   previewMessage += `Are you sure you want to delete this case?`;
   
-  // Create confirmation keyboard
   const keyboard = new InlineKeyboard()
     .text(`${EMOJI.ERROR} Yes, DELETE`, `delete_confirm_${caseId}`)
     .text(`${EMOJI.SUCCESS} Cancel`, 'delete_cancel');
@@ -372,7 +359,6 @@ const handleRollback = withErrorHandling(async (ctx) => {
   
   const selectedBackup = backupFiles[versionNumber - 1];
   
-  // Create confirmation keyboard
   const keyboard = new InlineKeyboard()
     .text(`${EMOJI.SUCCESS} Confirm Rollback`, `rollback_confirm_${versionNumber}`)
     .text(`${EMOJI.ERROR} Cancel`, 'rollback_cancel');
@@ -406,7 +392,6 @@ const handleDiff = withErrorHandling(async (ctx) => {
   
   await ctx.reply(`${EMOJI.LOADING} Analyzing differences...`);
   
-  // Load content for comparison
   let content1, label1;
   if (version2) {
     // Compare two backups
@@ -425,7 +410,6 @@ const handleDiff = withErrorHandling(async (ctx) => {
   const content2 = backup2.data;
   const label2 = `Backup \\#${compareVersion}`;
   
-  // Find differences
   const differences = findDifferences(content1, content2);
   
   if (differences.length === 0) {
@@ -434,11 +418,9 @@ const handleDiff = withErrorHandling(async (ctx) => {
     );
   }
   
-  // Format differences message
   let message = `📊 *Differences: ${label1} → ${label2}*\n\n`;
   message += `Found ${differences.length} change\\(s\\):\n\n`;
   
-  // Show first 20 differences
   const diffsToShow = differences.slice(0, 20);
   diffsToShow.forEach(diff => {
     const icon = diff.type === 'added' ? '➕' : 

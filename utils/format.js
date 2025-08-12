@@ -1,5 +1,3 @@
-// telegram-bot/utils/format.js
-
 const { EMOJI } = require('../config/constants');
 
 /**
