@@ -1,5 +1,3 @@
-// telegram-bot/services/api.js
-
 const { API_URL, API_TOKEN } = require('../config/constants');
 
 /**

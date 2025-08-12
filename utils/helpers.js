@@ -1,5 +1,3 @@
-// telegram-bot/utils/helpers.js
-
 const fs = require('fs').promises;
 const path = require('path');
 const { BACKUP_DIR } = require('../config/constants');

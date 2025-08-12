@@ -1,9 +1,6 @@
-// telegram-bot/stateManager.js
-
 // Simple in-memory state management for user conversations
 const userStates = new Map();
 
-// Possible states for the add_case flow
 const ADD_CASE_STATES = {
   WAITING_ID: 'waiting_id',
   WAITING_TITLE: 'waiting_title',
@@ -17,7 +14,6 @@ const ADD_CASE_STATES = {
   WAITING_LEARNINGS: 'waiting_learnings'
 };
 
-// Possible states for the edit_case flow
 const EDIT_CASE_STATES = {
   WAITING_CASE_ID: 'waiting_case_id_to_edit',
   WAITING_TITLE: 'waiting_title_edit',
@@ -31,7 +27,6 @@ const EDIT_CASE_STATES = {
   WAITING_LEARNINGS: 'waiting_learnings_edit'
 };
 
-// Initialize user state
 function initUserState(userId) {
   userStates.set(userId, {
     command: null,
@@ -41,12 +36,10 @@ function initUserState(userId) {
   });
 }
 
-// Get user state
 function getUserState(userId) {
   return userStates.get(userId);
 }
 
-// Update user state
 function updateUserState(userId, updates) {
   const currentState = getUserState(userId) || {};
   userStates.set(userId, {
@@ -55,12 +48,10 @@ function updateUserState(userId, updates) {
   });
 }
 
-// Clear user state
 function clearUserState(userId) {
   userStates.delete(userId);
 }
 
-// Check if user has active state
 function hasActiveState(userId) {
   return userStates.has(userId);
 }

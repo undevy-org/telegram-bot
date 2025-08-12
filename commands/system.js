@@ -1,5 +1,3 @@
-// telegram-bot/commands/system.js
-
 const { EMOJI } = require('../config/constants');
 const { escapeMarkdown, formatFileSize, formatDate } = require('../utils/format');
 const { getContent } = require('../services/api');
@@ -57,15 +55,12 @@ const handleStatus = withErrorHandling(async (ctx) => {
   
   const result = await getContent();
   
-  // Count profiles
   const profileCount = Object.keys(result.content)
     .filter(key => key === key.toUpperCase() && key !== 'GLOBAL_DATA')
     .length;
   
-  // Count case studies
   const caseCount = Object.keys(result.content.GLOBAL_DATA?.case_studies || {}).length;
   
-  // Format status message
   const statusMessage = `
 ${EMOJI.SUCCESS} *System Status*
 
@@ -97,11 +92,9 @@ const handleCancel = withErrorHandling(async (ctx) => {
     return await ctx.reply(`${EMOJI.ERROR} You don't have any active sessions.`);
   }
   
-  // Get state info before clearing
   const state = stateManager.getUserState(userId);
   const command = state.command;
   
-  // Clear state
   stateManager.clearUserState(userId);
   
   await ctx.reply(

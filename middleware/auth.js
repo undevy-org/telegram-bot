@@ -1,5 +1,3 @@
-// telegram-bot/middleware/auth.js
-
 const { ADMIN_USER_ID, EMOJI } = require('../config/constants');
 
 /**
@@ -18,7 +16,6 @@ async function authMiddleware(ctx, next) {
     return ctx.reply(`${EMOJI.ERROR} Unauthorized. This bot is private.`);
   }
   
-  // Log authorized action
   const action = ctx.message?.text || ctx.callbackQuery?.data || 'unknown';
   const username = ctx.from.username || 'no-username';
   console.log(`[AUTH] Authorized: @${username} (${userId}) - ${action}`);

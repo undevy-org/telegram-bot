@@ -1,5 +1,3 @@
-// telegram-bot/analytics.js
-
 const { ANALYTICS_CHECK_INTERVAL, EMOJI } = require('./config/constants');
 const { escapeMarkdown } = require('./utils/format');
 const { getContent } = require('./services/api');
@@ -209,7 +207,6 @@ class AnalyticsMonitor {
       const content = contentData?.content; // Adjust based on actual getContent return structure
       console.log('[ANALYTICS] Loaded content.json, has ', !!content);
 
-      // Process each visit
       let newVisitsCount = 0;
       if (!visits || visits.length === 0) {
         console.log('[ANALYTICS] No visits to process');

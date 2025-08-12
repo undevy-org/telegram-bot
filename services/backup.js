@@ -1,5 +1,3 @@
-// telegram-bot/services/backup.js
-
 const fs = require('fs').promises;
 const path = require('path');
 const { BACKUP_DIR, BACKUP_RETENTION } = require('../config/constants');
@@ -12,18 +10,14 @@ const { getBackupFiles } = require('../utils/helpers');
  */
 async function createBackup(currentContent) {
   try {
-    // Ensure backup directory exists
     await fs.mkdir(BACKUP_DIR, { recursive: true });
     
-    // Generate timestamp-based filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupPath = path.join(BACKUP_DIR, `content-${timestamp}.json`);
     
-    // Write backup file
     await fs.writeFile(backupPath, currentContent);
     console.log('[BACKUP] Created:', backupPath);
     
-    // Clean up old backups
     await cleanupOldBackups();
     
     return backupPath;
@@ -41,7 +35,6 @@ async function cleanupOldBackups() {
     const backupFiles = await getBackupFiles();
     
     if (backupFiles.length > BACKUP_RETENTION) {
-      // Delete oldest backups
       const filesToDelete = backupFiles.slice(BACKUP_RETENTION);
       
       for (const file of filesToDelete) {

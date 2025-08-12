@@ -1,5 +1,3 @@
-// telegram-bot/handlers/conversations.js
-
 const stateManager = require('../stateManager');
 const { EMOJI } = require('../config/constants');
 const { escapeMarkdown, truncateText } = require('../utils/format');
