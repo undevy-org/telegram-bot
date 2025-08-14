@@ -5,6 +5,7 @@ module.exports = {
   API_TOKEN: process.env.API_TOKEN,
   ADMIN_USER_ID: process.env.ADMIN_USER_ID,
   MATOMO_TOKEN: process.env.MATOMO_TOKEN,
+  PORTFOLIO_NAME: process.env.PORTFOLIO_NAME || 'Portfolio',
   
   // Paths and directories
   BACKUP_DIR: process.env.BACKUP_DIR,
