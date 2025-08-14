@@ -88,7 +88,8 @@ The bot is deployed via GitHub Actions:
 
 Monitor deployment:
 ```bash
-pm2 logs portfolio-cms-bot --lines 100
+
+pm2 logs YOUR_BOT_PROCESS_NAME --lines 100
 ```
 
 ## Command Reference
@@ -99,7 +100,7 @@ See main README or use `/help` command in the bot for full command list.
 
 ### Bot not responding
 - Check PM2 status: `pm2 status`
-- View logs: `pm2 logs portfolio-cms-bot`
+- View logs: `pm2 logs YOUR_BOT_PROCESS_NAME`
 - Verify environment variables are set
 
 ### API connection errors

@@ -121,8 +121,12 @@ function extractVisitedPages(visit) {
 
     let pageName = 'Unknown Page';
 
+    // CHANGED: Use PORTFOLIO_NAME from environment variable instead of hardcoded 'Undevy Portfolio'
+    // This allows the bot to filter out the generic portfolio title for any deployment
+    const portfolioName = process.env.PORTFOLIO_NAME || 'Portfolio';
+
     // First, try to use the page title if it's meaningful and exists
-    if (action.pageTitle && typeof action.pageTitle === 'string' && !action.pageTitle.includes('Undevy Portfolio')) {
+    if (action.pageTitle && typeof action.pageTitle === 'string' && !action.pageTitle.includes(portfolioName)) {
       pageName = action.pageTitle;
     }
     // Then, try to extract from URL hash
