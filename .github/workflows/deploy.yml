@@ -1,0 +1,127 @@
+# Deploy Pipeline for Telegram Bot
+# Location: .github/workflows/deploy.yml
+# Purpose: Deploy bot to production server
+
+name: Deploy Bot
+
+on:
+  # Trigger on successful CI completion
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types: [completed]
+    branches: [main]
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    # Only deploy if CI passed (or manual trigger)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      # Setup deployment information
+      - name: Setup deployment info
+        run: |
+          echo "🚀 Starting bot deployment"
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "Triggered manually"
+          else
+            echo "Triggered by CI completion"
+            echo "CI Run ID: ${{ github.event.workflow_run.id }}"
+          fi
+      
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Deploy bot files to server
+      - name: Deploy bot files to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # Copy all bot files to the server
+          source: "./*"
+          target: ${{ secrets.DEPLOY_PATH_BOT }}
+          # Exclude unnecessary files
+          rm: true
+          strip_components: 0
+      
+      # Install dependencies and restart bot
+      - name: Install dependencies and restart bot
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            
+            echo "🔧 Setting up Node environment..."
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            
+            echo "📁 Navigating to bot directory..."
+            cd ${{ secrets.DEPLOY_PATH_BOT }}
+            
+            # Backup current .env file if it exists
+            if [ -f .env ]; then
+              echo "💾 Backing up .env file..."
+              cp .env .env.backup
+            fi
+            
+            echo "📦 Installing production dependencies..."
+            npm ci --omit=dev || npm install --production
+            
+            # Restore .env file
+            if [ -f .env.backup ]; then
+              echo "♻️ Restoring .env file..."
+              mv .env.backup .env
+            fi
+            
+            echo "🔄 Restarting bot via PM2..."
+            APP="${{ secrets.PM2_APP_NAME_BOT }}"
+            
+            # Check if bot process exists
+            if pm2 describe "$APP" >/dev/null 2>&1; then
+              pm2 restart "$APP" --update-env
+              echo "✅ Bot restarted: $APP"
+            else
+              # Start bot if not running
+              pm2 start bot.js --name "$APP"
+              echo "✅ Bot started: $APP"
+            fi
+            
+            # Save PM2 configuration
+            pm2 save || true
+            
+            # Show bot status
+            echo "📊 Bot status:"
+            pm2 show "$APP" || true
+            
+            echo "✅ Bot deployment completed!"
+      
+      # Final success notification
+      - name: Deployment summary
+        run: |
+          echo "🎉 BOT DEPLOYMENT SUCCESSFUL!"
+          echo "================================"
+          echo "The Telegram bot has been deployed to production."
+          echo "Check bot status with: pm2 logs ${{ secrets.PM2_APP_NAME_BOT }}"
+  
+  # Handle failed CI
+  failure-notification:
+    name: Handle CI Failure
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    
+    steps:
+      - name: Report CI failure
+        run: |
+          echo "❌ CI Pipeline failed!"
+          echo "Deployment cancelled due to failed checks."
+          echo "Check the failed run: ${{ github.event.workflow_run.html_url }}"

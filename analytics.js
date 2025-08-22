@@ -25,9 +25,6 @@ class AnalyticsMonitor {
     this.isRunning = false;
     this.checkTimer = null;
 
-    // Statistics for debugging
-    // FIX 1: Initialize lastCheckTime to a valid date to prevent startup crash.
-    // Set it to 1 hour ago to fetch recent visits on the first run.
     const initialCheckTime = new Date(Date.now() - 60 * 60 * 1000);
 
     this.stats = {
@@ -44,23 +41,30 @@ class AnalyticsMonitor {
    * Start the monitoring loop
    */
   start() {
-    if (this.isRunning) {
-      console.log('[ANALYTICS] Monitor already running');
-      return;
+    // ADDED: Check if analytics is enabled before starting
+    if (!ENABLE_ANALYTICS) {
+        console.log('[ANALYTICS] Monitoring is disabled in config. Skipping start.');
+        return;
     }
 
+    if (this.isRunning) {
+        console.log('[ANALYTICS] Monitor already running');
+        return;
+    }
+
+    console.log('[ANALYTICS] Starting monitor...'); // MODIFIED: Added a log message
     this.isRunning = true;
-    
+
     // Perform immediate check
     this.checkVisits().then(() => {
-      console.log('[ANALYTICS] Initial check completed');
+        console.log('[ANALYTICS] Initial check completed');
     });
     
     // Set up interval for regular checks
     this.checkTimer = setInterval(() => {
-      this.checkVisits();
+        this.checkVisits();
     }, ANALYTICS_CHECK_INTERVAL);
-    
+
     console.log('[ANALYTICS] Monitor started with interval:', ANALYTICS_CHECK_INTERVAL / 1000, 'seconds');
   }
 
@@ -176,8 +180,6 @@ class AnalyticsMonitor {
     const checkStartTime = new Date();
     console.log('[ANALYTICS] Starting visit check at:', checkStartTime.toISOString());
     try {
-      // FIX 2: Corrected logic for fetching visits and updating check time.
-      // Update checksPerformed counter at the beginning.
       this.stats.checksPerformed++;
       
       // Log the time window for debugging

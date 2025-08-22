@@ -7,7 +7,7 @@ if (fs.existsSync('.env.local')) {
 
 const { Bot } = require('grammy');
 
-const { TOKEN, ADMIN_USER_ID } = require('./config/constants');
+const { TOKEN, ADMIN_USER_ID, ENABLE_ANALYTICS } = require('./config/constants');
 const authMiddleware = require('./middleware/auth');
 const { setupErrorHandler } = require('./handlers/errors');
 const { setupCallbackHandlers } = require('./handlers/callbacks');
@@ -53,10 +53,14 @@ bot.start({
   onStart: () => {
     console.log('[BOT] ✅ Bot started successfully!');
     console.log('[BOT] Waiting for messages...');
-    
-    analyticsMonitor.start();
-    console.log('[BOT] Analytics monitoring started');
-  },
+    // MODIFIED: Only start analytics if enabled
+        if (ENABLE_ANALYTICS) {
+            analyticsMonitor.start();
+            console.log('[BOT] Analytics monitoring is enabled and started');
+        } else {
+            console.log('[BOT] Analytics monitoring is disabled');
+        }
+    },
 });
 
 process.once('SIGINT', () => {
