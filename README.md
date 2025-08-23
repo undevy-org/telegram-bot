@@ -1,4 +1,4 @@
-# Portfolio CMS Telegram Bot v2.0
+# Portfolio CMS Telegram Bot
 
 A modular Telegram bot for managing portfolio content without SSH access. Built with grammY framework.
 
@@ -56,12 +56,15 @@ The bot follows a modular architecture pattern with clear separation of concerns
    ```
 
 3. Configure your `.env`:
-   ```
-   TELEGRAM_BOT_TOKEN=your-bot-token
-   API_URL=http://localhost:3000/api/admin/content
-   API_TOKEN=your-api-token
-   ADMIN_USER_ID=your-telegram-id
-   MATOMO_TOKEN=your-matomo-token
+   ```env
+   TELEGRAM_BOT_TOKEN=your_bot_token
+   API_URL=https://your-domain.com/api/admin/content
+   API_TOKEN=your_api_token
+   ADMIN_USER_ID=your_telegram_id
+   BACKUP_DIR=./content-backups
+   MATOMO_URL=https://analytics.your-domain.com
+   MATOMO_TOKEN=your_matomo_token
+   PORTFOLIO_NAME=Your Portfolio
    ```
 
 4. Run the bot:
@@ -92,9 +95,38 @@ Monitor deployment:
 pm2 logs YOUR_BOT_PROCESS_NAME --lines 100
 ```
 
-## Command Reference
+### Required GitHub Secrets
 
-See main README or use `/help` command in the bot for full command list.
+- `SSH_HOST`: Production server IP
+- `SSH_USER`: Server username  
+- `SSH_PRIVATE_KEY`: SSH key for deployment
+- `DEPLOY_PATH_BOT`: Bot deployment path
+- `PM2_APP_NAME_BOT`: PM2 process name
+
+## Commands
+
+- `/start` - Initialize bot
+- `/help` - Show all commands
+- `/status` - Check bot and API status
+- `/stats` - View portfolio statistics
+- `/list` - List all cases
+- `/add_case` - Create new case
+- `/edit_case_[id]` - Edit existing case
+- `/delete_case_[id]` - Delete case
+- `/history` - View change history
+- `/restore` - Restore from backup
+
+## Architecture
+
+The bot integrates with the portfolio API to manage content stored in `content.json` on the server.
+
+## Related Repositories
+
+- [Portfolio Frontend](https://github.com/undevy-org/portfolio) - Main portfolio application
+
+## Version
+
+See [package.json](./package.json) for current version.
 
 ## Troubleshooting
 

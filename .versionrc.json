@@ -1,0 +1,14 @@
+{
+  "types": [
+    {"type": "feat", "section": "Features"},
+    {"type": "fix", "section": "Bug Fixes"},
+    {"type": "chore", "hidden": false, "section": "Maintenance"},
+    {"type": "docs", "hidden": false, "section": "Documentation"},
+    {"type": "style", "hidden": true},
+    {"type": "refactor", "hidden": false, "section": "Code Refactoring"},
+    {"type": "perf", "hidden": false, "section": "Performance"},
+    {"type": "test", "hidden": true}
+  ],
+  "commitUrlFormat": "https://github.com/undevy-org/telegram-bot/commit/{{hash}}",
+  "compareUrlFormat": "https://github.com/undevy-org/telegram-bot/compare/{{previousTag}}...{{currentTag}}"
+}
