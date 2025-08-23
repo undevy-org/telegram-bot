@@ -1,9 +1,23 @@
 # Changelog
 
-All notable changes to the Portfolio CMS Telegram Bot will be documented in this file.
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.0.0](https://github.com/undevy-org/telegram-bot/compare/v4.2.2...v1.0.0) (2025-08-23)
+
+
+### Features
+
+* add CI/CD pipelines for automated deployment ([fc571e8](https://github.com/undevy-org/telegram-bot/commit/fc571e880ba12febd7274fa4c097f13853aae7a4))
+* add versioning and release automation ([188dd47](https://github.com/undevy-org/telegram-bot/commit/188dd470ad6a05a8cda1e9123c3b43956592921d))
+
+
+### Bug Fixes
+
+* Analytics disabled for dev mode ([5bedc18](https://github.com/undevy-org/telegram-bot/commit/5bedc184b36271775ea9637c82ac10940018e27a))
+* **ci:** align deploy method with working portfolio pipeline ([4f3a2e9](https://github.com/undevy-org/telegram-bot/commit/4f3a2e9f104a3655ba4ba0629215c56785919ed7))
+* resolve tar archive creation issue ([2752509](https://github.com/undevy-org/telegram-bot/commit/275250987850db2c565a6aa5b52cb40e96f774fe))
+* simplify deployment pipeline and fix SSH issues ([3100a48](https://github.com/undevy-org/telegram-bot/commit/3100a481167eae02a06d72a7939ff57a060c42d0))
+* simplify deployment pipeline and fix SSH issues ([be31f40](https://github.com/undevy-org/telegram-bot/commit/be31f4070c4f0766a9bf8acb02f99a50eb4c435d))
 
 ## [1.0.0] - 2024-08-22
 
