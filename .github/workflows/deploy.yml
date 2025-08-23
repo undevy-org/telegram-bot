@@ -1,6 +1,6 @@
-# Deploy Pipeline for Telegram Bot - DEBUG VERSION
+# Deploy Pipeline for Telegram Bot - FIXED VERSION
 # Location: .github/workflows/deploy.yml
-# Purpose: Deploy bot with extensive debugging
+# Purpose: Deploy bot to production using a reliable file-based key auth
 
 name: Deploy Bot
 
@@ -18,23 +18,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      # Test SSH connection first
-      - name: Test SSH Connection
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            echo "✅ SSH Connection successful!"
-            echo "User: $(whoami)"
-            echo "Directory: $(pwd)"
-            echo "Server: $(hostname)"
-            
-      # If SSH works, continue with deployment
+      # MODIFIED: Removed the initial SSH test. We'll test by deploying.
+      
       - name: Create deployment package
         run: |
           echo "📦 Creating deployment package..."
+          # Create a tar archive of all necessary files
           tar -czf /tmp/bot-deploy.tar.gz \
             --exclude='.git' \
             --exclude='node_modules' \
@@ -44,67 +33,73 @@ jobs:
             .
           echo "✅ Package created: $(du -h /tmp/bot-deploy.tar.gz | cut -f1)"
       
-      # Transfer using SCP action (simpler than manual)
-      - name: Transfer files to server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "/tmp/bot-deploy.tar.gz"
-          target: "/tmp"
-          strip_components: 1
-      
-      # Deploy on server
-      - name: Deploy and restart bot
+      # ADDED: This block is the key fix. It mirrors the working portfolio deploy.
+      # It writes the SSH key to a file instead of passing it as a variable.
+      - name: Transfer package to server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          echo "🔑 Setting up SSH key file..."
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          
+          # Add server to known hosts to avoid interactive prompts
+          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts 2>/dev/null
+          
+          echo "📤 Transferring bot package to server..."
+          scp -i ~/.ssh/deploy_key /tmp/bot-deploy.tar.gz $SSH_USER@$SSH_HOST:/tmp/
+          
+          echo "✅ Package transferred successfully."
+
+      # MODIFIED: This step now only executes commands, auth is already done.
+      - name: Deploy and restart bot on server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }} # Still needed for this action
           script: |
             set -e
             
-            echo "🔧 Setting up deployment..."
-            
-            # Setup Node
+            echo "🔧 Setting up Node environment..."
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
             BOT_PATH="${{ secrets.DEPLOY_PATH_BOT }}"
             
-            # Backup important files
+            echo "🚀 Starting deployment on server..."
+            
+            # Backup .env if it exists
             if [ -f "$BOT_PATH/.env" ]; then
-              echo "💾 Backing up .env..."
-              cp "$BOT_PATH/.env" /tmp/bot-env-backup
+              echo "💾 Backing up .env file..."
+              cp "$BOT_PATH/.env" /tmp/bot-env-backup-$(date +%s)
             fi
             
-            # Create new deployment directory
-            NEW_PATH="$BOT_PATH-new"
-            rm -rf "$NEW_PATH"
-            mkdir -p "$NEW_PATH"
+            # Create a new directory for the release
+            RELEASE_PATH="$BOT_PATH-$(date +%Y%m%d%H%M%S)"
+            mkdir -p "$RELEASE_PATH"
             
-            # Extract files
-            echo "📦 Extracting bot files..."
-            tar -xzf /tmp/bot-deploy.tar.gz -C "$NEW_PATH"
+            echo "📦 Extracting bot files to $RELEASE_PATH..."
+            tar -xzf /tmp/bot-deploy.tar.gz -C "$RELEASE_PATH"
             
             # Restore .env
-            if [ -f /tmp/bot-env-backup ]; then
-              cp /tmp/bot-env-backup "$NEW_PATH/.env"
+            if [ -f /tmp/bot-env-backup-$(date +%s) ]; then
+              cp /tmp/bot-env-backup-$(date +%s) "$RELEASE_PATH/.env"
             fi
             
-            # Swap directories
-            if [ -d "$BOT_PATH" ]; then
-              mv "$BOT_PATH" "$BOT_PATH-old-$(date +%s)"
-            fi
-            mv "$NEW_PATH" "$BOT_PATH"
+            echo "🔗 Linking new release..."
+            rm -rf "$BOT_PATH"
+            ln -sfn "$RELEASE_PATH" "$BOT_PATH"
             
-            # Install dependencies
             cd "$BOT_PATH"
+            echo "📦 Installing production dependencies..."
             npm ci --omit=dev || npm install --production
             
-            # Restart bot
+            # Restart bot via PM2
             APP="${{ secrets.PM2_APP_NAME_BOT }}"
+            echo "🔄 Restarting PM2 process: $APP..."
             if pm2 describe "$APP" >/dev/null 2>&1; then
               pm2 restart "$APP"
             else
@@ -113,4 +108,11 @@ jobs:
             
             pm2 save
             
-            echo "✅ Bot deployed successfully!"
+            # Cleanup
+            echo "🧹 Cleaning up old releases and temporary files..."
+            rm /tmp/bot-deploy.tar.gz
+            rm /tmp/bot-env-backup-*
+            # Keep the last 3 releases
+            ls -dt $BOT_PATH-* 2>/dev/null | tail -n +4 | xargs rm -rf
+            
+            echo "✅ Bot deployment complete!"
