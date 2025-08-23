@@ -37,14 +37,16 @@ jobs:
       - name: Create deployment package
         run: |
           echo "📦 Creating deployment package..."
-          tar -czf bot-deploy.tar.gz \
+          # Create archive in /tmp to avoid "file changed" error
+          tar -czf /tmp/bot-deploy.tar.gz \
             --exclude='.git' \
             --exclude='node_modules' \
             --exclude='.env' \
             --exclude='.github' \
             --exclude='*.log' \
+            --exclude='bot-deploy.tar.gz' \
             .
-          echo "✅ Package created: $(du -h bot-deploy.tar.gz | cut -f1)"
+          echo "✅ Package created: $(du -h /tmp/bot-deploy.tar.gz | cut -f1)"
       
       # Transfer bot package to server
       - name: Transfer bot to server
@@ -83,7 +85,8 @@ jobs:
           ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts 2>/dev/null
           
           echo "📤 Transferring bot files..."
-          scp -i ~/.ssh/deploy_key bot-deploy.tar.gz $SSH_USER@$SSH_HOST:/tmp/
+          # Copy from /tmp where we created it
+          scp -i ~/.ssh/deploy_key /tmp/bot-deploy.tar.gz $SSH_USER@$SSH_HOST:/tmp/
           
           echo "✅ Files transferred successfully"
       
