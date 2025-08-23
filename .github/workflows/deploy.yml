@@ -1,15 +1,12 @@
-# Deploy Pipeline for Telegram Bot - FIXED
+# Deploy Pipeline for Telegram Bot - DEBUG VERSION
 # Location: .github/workflows/deploy.yml
-# Purpose: Deploy bot to production server
+# Purpose: Deploy bot with extensive debugging
 
 name: Deploy Bot
 
 on:
-  # Trigger on push to main (simpler for bot)
   push:
     branches: [main]
-  
-  # Allow manual trigger
   workflow_dispatch:
 
 jobs:
@@ -18,80 +15,48 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      # Setup deployment information
-      - name: Setup deployment info
-        run: |
-          echo "🚀 Starting bot deployment"
-          echo "Commit: ${{ github.sha }}"
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "Triggered manually"
-          else
-            echo "Triggered by push to main"
-          fi
-      
-      # Checkout the code
       - name: Checkout code
         uses: actions/checkout@v4
       
-      # Create deployment package
+      # Test SSH connection first
+      - name: Test SSH Connection
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "✅ SSH Connection successful!"
+            echo "User: $(whoami)"
+            echo "Directory: $(pwd)"
+            echo "Server: $(hostname)"
+            
+      # If SSH works, continue with deployment
       - name: Create deployment package
         run: |
           echo "📦 Creating deployment package..."
-          # Create archive in /tmp to avoid "file changed" error
           tar -czf /tmp/bot-deploy.tar.gz \
             --exclude='.git' \
             --exclude='node_modules' \
             --exclude='.env' \
             --exclude='.github' \
             --exclude='*.log' \
-            --exclude='bot-deploy.tar.gz' \
             .
           echo "✅ Package created: $(du -h /tmp/bot-deploy.tar.gz | cut -f1)"
       
-      # Transfer bot package to server
-      - name: Transfer bot to server
-        uses: appleboy/ssh-action@master
+      # Transfer using SCP action (simpler than manual)
+      - name: Transfer files to server
+        uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            echo "📁 Preparing to receive bot files..."
-            mkdir -p /tmp/bot-deploy-${{ github.sha }}
+          source: "/tmp/bot-deploy.tar.gz"
+          target: "/tmp"
+          strip_components: 1
       
-      # Upload the package using SCP with base64 encoding to avoid issues
-      - name: Upload deployment package
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            # We'll use a different approach - direct file transfer via SSH
-            echo "📦 Ready to receive bot package..."
-      
-      # Alternative approach: Transfer files directly via SSH
-      - name: Deploy bot files
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-        run: |
-          echo "🔑 Setting up SSH key..."
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          
-          # Add host to known hosts to avoid prompt
-          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts 2>/dev/null
-          
-          echo "📤 Transferring bot files..."
-          # Copy from /tmp where we created it
-          scp -i ~/.ssh/deploy_key /tmp/bot-deploy.tar.gz $SSH_USER@$SSH_HOST:/tmp/
-          
-          echo "✅ Files transferred successfully"
-      
-      # Extract and deploy on server
-      - name: Extract and deploy
+      # Deploy on server
+      - name: Deploy and restart bot
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -100,93 +65,52 @@ jobs:
           script: |
             set -e
             
-            echo "🔧 Setting up Node environment..."
+            echo "🔧 Setting up deployment..."
+            
+            # Setup Node
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
             BOT_PATH="${{ secrets.DEPLOY_PATH_BOT }}"
             
-            # Backup .env file if it exists
+            # Backup important files
             if [ -f "$BOT_PATH/.env" ]; then
-              echo "💾 Backing up .env file..."
+              echo "💾 Backing up .env..."
               cp "$BOT_PATH/.env" /tmp/bot-env-backup
             fi
             
-            # Backup content-backups directory if it exists
-            if [ -d "$BOT_PATH/content-backups" ]; then
-              echo "💾 Backing up content-backups..."
-              cp -r "$BOT_PATH/content-backups" /tmp/bot-content-backups || true
-            fi
-            
             # Create new deployment directory
-            echo "📁 Preparing deployment directory..."
-            NEW_BOT_PATH="$BOT_PATH-new"
-            rm -rf "$NEW_BOT_PATH"
-            mkdir -p "$NEW_BOT_PATH"
+            NEW_PATH="$BOT_PATH-new"
+            rm -rf "$NEW_PATH"
+            mkdir -p "$NEW_PATH"
             
-            # Extract new files
+            # Extract files
             echo "📦 Extracting bot files..."
-            tar -xzf /tmp/bot-deploy.tar.gz -C "$NEW_BOT_PATH"
+            tar -xzf /tmp/bot-deploy.tar.gz -C "$NEW_PATH"
             
-            # Restore .env file
+            # Restore .env
             if [ -f /tmp/bot-env-backup ]; then
-              echo "♻️ Restoring .env file..."
-              cp /tmp/bot-env-backup "$NEW_BOT_PATH/.env"
-            fi
-            
-            # Restore content-backups
-            if [ -d /tmp/bot-content-backups ]; then
-              echo "♻️ Restoring content backups..."
-              cp -r /tmp/bot-content-backups "$NEW_BOT_PATH/content-backups"
+              cp /tmp/bot-env-backup "$NEW_PATH/.env"
             fi
             
             # Swap directories
-            echo "🔄 Swapping bot directories..."
             if [ -d "$BOT_PATH" ]; then
               mv "$BOT_PATH" "$BOT_PATH-old-$(date +%s)"
             fi
-            mv "$NEW_BOT_PATH" "$BOT_PATH"
+            mv "$NEW_PATH" "$BOT_PATH"
             
             # Install dependencies
             cd "$BOT_PATH"
-            echo "📦 Installing production dependencies..."
             npm ci --omit=dev || npm install --production
             
-            # Restart bot via PM2
-            echo "🔄 Restarting bot via PM2..."
+            # Restart bot
             APP="${{ secrets.PM2_APP_NAME_BOT }}"
-            
-            # Check if bot process exists
             if pm2 describe "$APP" >/dev/null 2>&1; then
-              pm2 restart "$APP" --update-env
-              echo "✅ Bot restarted: $APP"
+              pm2 restart "$APP"
             else
-              # Start bot if not running
               pm2 start bot.js --name "$APP"
-              echo "✅ Bot started: $APP"
             fi
             
-            # Save PM2 configuration
-            pm2 save || true
+            pm2 save
             
-            # Show bot status
-            echo "📊 Bot status:"
-            pm2 list | grep "$APP" || true
-            
-            # Cleanup
-            echo "🧹 Cleaning up..."
-            rm -f /tmp/bot-deploy.tar.gz
-            rm -f /tmp/bot-env-backup
-            rm -rf /tmp/bot-content-backups
-            ls -dt $BOT_PATH-old-* 2>/dev/null | tail -n +3 | xargs rm -rf || true
-            
-            echo "✅ Bot deployment completed!"
-      
-      # Final success notification
-      - name: Deployment summary
-        run: |
-          echo "🎉 BOT DEPLOYMENT SUCCESSFUL!"
-          echo "================================"
-          echo "Commit: ${{ github.sha }}"
-          echo "The Telegram bot has been deployed to production."
-          echo "Check bot status with: pm2 logs ${{ secrets.PM2_APP_NAME_BOT }}"
+            echo "✅ Bot deployed successfully!"
