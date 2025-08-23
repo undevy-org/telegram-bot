@@ -1,4 +1,4 @@
-# Deploy Pipeline for Telegram Bot - FIXED VERSION
+# Deploy Pipeline for Telegram Bot
 # Location: .github/workflows/deploy.yml
 # Purpose: Deploy bot to production using a reliable file-based key auth
 
@@ -18,8 +18,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      # MODIFIED: Removed the initial SSH test. We'll test by deploying.
-      
       - name: Create deployment package
         run: |
           echo "📦 Creating deployment package..."
@@ -33,7 +31,6 @@ jobs:
             .
           echo "✅ Package created: $(du -h /tmp/bot-deploy.tar.gz | cut -f1)"
       
-      # ADDED: This block is the key fix. It mirrors the working portfolio deploy.
       # It writes the SSH key to a file instead of passing it as a variable.
       - name: Transfer package to server
         env:
@@ -53,13 +50,13 @@ jobs:
           
           echo "✅ Package transferred successfully."
 
-      # MODIFIED: This step now only executes commands, auth is already done.
+      # This step now only executes commands, auth is already done.
       - name: Deploy and restart bot on server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }} # Still needed for this action
+          key: ${{ secrets.SSH_PRIVATE_KEY }} 
           script: |
             set -e
             

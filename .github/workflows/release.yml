@@ -1,0 +1,58 @@
+# GitHub Release Automation for Telegram Bot
+# Location: .github/workflows/release.yml
+
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get version from tag
+        id: tag_version
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          # Extract the changelog section for this version
+          awk '/^## \[${{ steps.tag_version.outputs.VERSION }}\]/{flag=1; next} /^## \[/{flag=0} flag' CHANGELOG.md > version_changelog.md
+          
+          # Check if we got content
+          if [ ! -s version_changelog.md ]; then
+            echo "No changelog found for version ${{ steps.tag_version.outputs.VERSION }}"
+            echo "Using generic message"
+            echo "Release ${{ steps.tag_version.outputs.VERSION }}" > version_changelog.md
+          fi
+          
+          echo "Changelog content:"
+          cat version_changelog.md
+      
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.tag_version.outputs.TAG }}
+          release_name: Bot v${{ steps.tag_version.outputs.VERSION }}
+          body_path: version_changelog.md
+          draft: false
+          prerelease: false
+      
+      - name: Notify deployment
+        run: |
+          echo "🎉 Release created: v${{ steps.tag_version.outputs.VERSION }}"
+          echo "📦 The bot will be automatically deployed via the deployment pipeline"
