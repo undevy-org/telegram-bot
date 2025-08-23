@@ -107,8 +107,8 @@ jobs:
             
             # Cleanup
             echo "🧹 Cleaning up old releases and temporary files..."
-            rm /tmp/bot-deploy.tar.gz
-            rm /tmp/bot-env-backup-*
+            rm -f /tmp/bot-deploy.tar.gz
+            rm -f /tmp/bot-env-backup-*
             # Keep the last 3 releases
             ls -dt $BOT_PATH-* 2>/dev/null | tail -n +4 | xargs rm -rf
             
