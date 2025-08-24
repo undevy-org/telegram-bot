@@ -31,16 +31,16 @@ jobs:
             .
           echo "✅ Package created: $(du -h /tmp/bot-deploy.tar.gz | cut -f1)"
       
-      # It writes the SSH key to a file instead of passing it as a variable.
+      # This tells the action to send a single file without trying to archive it again.
       - name: Transfer package to server
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "bot-deploy.tar.gz" # File from the runner's workspace
-          target: "/tmp" # Destination on the server
-          strip_components: 1
+          source: "bot-deploy.tar.gz" # The single file we created
+          target: "/tmp"
+          overwrite: true # This is the key to making it treat 'source' as a single file
 
       # This step can now reliably find the file on the server
       - name: Deploy and restart bot on server
