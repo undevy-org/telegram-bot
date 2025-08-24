@@ -1,12 +1,14 @@
 # Deploy Pipeline for Telegram Bot
 # Location: .github/workflows/deploy.yml
-# Purpose: Deploy bot to production using a reliable file-based key auth
 
 name: Deploy Bot
 
 on:
+  # Trigger on push to main
   push:
     branches: [main]
+  
+  # Allow manual trigger
   workflow_dispatch:
 
 jobs:
@@ -15,40 +17,24 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      # Display deployment information
+      - name: Setup deployment info
+        run: |
+          echo "🚀 Starting bot deployment"
+          echo "Commit: ${{ github.sha }}"
+          echo "Triggered by: ${{ github.event_name }}"
+      
+      # Get the latest code from repository
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Create deployment package
-        run: |
-          echo "📦 Creating deployment package..."
-          # Create a tar archive of all necessary files
-          tar -czf /tmp/bot-deploy.tar.gz \
-            --exclude='.git' \
-            --exclude='node_modules' \
-            --exclude='.env' \
-            --exclude='.github' \
-            --exclude='*.log' \
-            .
-          echo "✅ Package created: $(du -h /tmp/bot-deploy.tar.gz | cut -f1)"
-      
-      # This tells the action to send a single file without trying to archive it again.
-      - name: Transfer package to server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "bot-deploy.tar.gz" # The single file we created
-          target: "/tmp"
-          overwrite: true # This is the key to making it treat 'source' as a single file
-
-      # This step can now reliably find the file on the server
-      - name: Deploy and restart bot on server
+      # Deploy bot to server using SSH directly
+      - name: Deploy bot to server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }} 
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
             
@@ -56,56 +42,145 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
-            APP_DIR="${{ secrets.DEPLOY_PATH_BOT }}"
-            RELEASES_DIR="$APP_DIR/releases"
-            SHARED_DIR="$APP_DIR/shared"
-            RELEASE_PATH="$RELEASES_DIR/$(date +%Y%m%d%H%M%S)"
+            # Define paths
+            BOT_PATH="${{ secrets.DEPLOY_PATH_BOT }}"
+            TEMP_BOT_PATH="$BOT_PATH-temp"
             
-            echo "🚀 Starting deployment on server..."
+            echo "📁 Creating temporary directory for new deployment..."
+            rm -rf "$TEMP_BOT_PATH"
+            mkdir -p "$TEMP_BOT_PATH"
             
-            echo "📁 Ensuring shared directory exists..."
-            mkdir -p "$RELEASES_DIR"
-            mkdir -p "$SHARED_DIR"
+            echo "📥 Cloning repository..."
+            git clone https://github.com/undevy-org/telegram-bot.git "$TEMP_BOT_PATH"
             
-            if [ ! -f "$SHARED_DIR/.env" ]; then
-              echo "⚠️ .env file not found in shared directory. Creating a placeholder."
-              echo "# Please fill this file with your bot's environment variables" > "$SHARED_DIR/.env"
-              echo "TELEGRAM_BOT_TOKEN=" >> "$SHARED_DIR/.env"
+            # Remove .git directory to save space
+            rm -rf "$TEMP_BOT_PATH/.git"
+            
+            # Check if bot directory exists and has .env file
+            if [ -d "$BOT_PATH" ]; then
+              echo "📁 Found existing bot installation"
+              
+              # Copy .env file from current installation if it exists
+              if [ -f "$BOT_PATH/.env" ]; then
+                echo "💾 Copying .env file from current installation..."
+                cp "$BOT_PATH/.env" "$TEMP_BOT_PATH/.env"
+              else
+                echo "⚠️ Warning: No .env file found in current installation"
+              fi
+              
+              # Copy content-backups directory if it exists
+              if [ -d "$BOT_PATH/content-backups" ]; then
+                echo "💾 Copying content-backups from current installation..."
+                cp -r "$BOT_PATH/content-backups" "$TEMP_BOT_PATH/content-backups"
+              fi
+            else
+              echo "🆕 First deployment - no existing installation found"
+              echo "⚠️ WARNING: Make sure to create .env file after deployment!"
             fi
             
-            echo "📦 Creating new release directory: $RELEASE_PATH"
-            mkdir -p "$RELEASE_PATH"
-            
-            # --- THE FIX IS HERE: The file is now at /tmp/bot-deploy.tar.gz on the server ---
-            echo "📦 Extracting bot files..."
-            tar -xzf /tmp/bot-deploy.tar.gz -C "$RELEASE_PATH"
-            
-            echo "🔗 Linking shared .env file..."
-            ln -sfn "$SHARED_DIR/.env" "$RELEASE_PATH/.env"
-            
-            cd "$RELEASE_PATH"
+            # Install dependencies in the new directory
             echo "📦 Installing production dependencies..."
+            cd "$TEMP_BOT_PATH"
             npm ci --omit=dev || npm install --production
             
-            echo "🔗 Activating new release..."
-            ln -sfn "$RELEASE_PATH" "$APP_DIR/current"
+            # Now swap the directories
+            echo "🔄 Swapping bot directories..."
+            
+            # If old bot exists, move it to backup (keep only one backup)
+            if [ -d "$BOT_PATH" ]; then
+              # Remove previous backup if it exists
+              if [ -d "$BOT_PATH-old" ]; then
+                echo "🗑️ Removing previous backup..."
+                rm -rf "$BOT_PATH-old"
+              fi
+              
+              # Move current to backup
+              echo "💾 Moving current installation to backup..."
+              mv "$BOT_PATH" "$BOT_PATH-old"
+            fi
+            
+            # Move new deployment to production
+            echo "📁 Moving new deployment to production..."
+            mv "$TEMP_BOT_PATH" "$BOT_PATH"
+            
+            # Verify .env file exists
+            if [ ! -f "$BOT_PATH/.env" ]; then
+              echo "❗❗❗ WARNING: .env file is missing!"
+              echo "The bot will not start without proper environment variables."
+              echo "Please create $BOT_PATH/.env with the following variables:"
+              echo "  TELEGRAM_BOT_TOKEN"
+              echo "  API_URL"
+              echo "  API_TOKEN"
+              echo "  ADMIN_USER_ID"
+              echo "  BACKUP_DIR"
+              echo "  MATOMO_URL"
+              echo "  MATOMO_TOKEN"
+              echo "  PORTFOLIO_NAME"
+              
+              # Try to restore from backup if available
+              if [ -f "$BOT_PATH-old/.env" ]; then
+                echo "🔄 Attempting to restore .env from backup..."
+                cp "$BOT_PATH-old/.env" "$BOT_PATH/.env"
+                echo "✅ .env restored from backup"
+              fi
+            else
+              echo "✅ .env file is present"
+            fi
             
             # Restart bot via PM2
-            APP_NAME="${{ secrets.PM2_APP_NAME_BOT }}"
-            PM2_ECOSYSTEM_FILE="$SHARED_DIR/ecosystem.config.js"
-
-            # Create a PM2 ecosystem file for reliability
-            echo "module.exports = { apps: [{ name: '$APP_NAME', script: '$APP_DIR/current/bot.js', watch: false, restart_delay: 5000 }] };" > $PM2_ECOSYSTEM_FILE
-
-            echo "🔄 Restarting PM2 process: $APP_NAME..."
-            pm2 startOrRestart $PM2_ECOSYSTEM_FILE
+            echo "🔄 Restarting bot via PM2..."
+            cd "$BOT_PATH"
+            APP="${{ secrets.PM2_APP_NAME_BOT }}"
             
-            pm2 save
+            # Check if bot process exists
+            if pm2 describe "$APP" >/dev/null 2>&1; then
+              pm2 restart "$APP" --update-env
+              echo "✅ Bot restarted: $APP"
+            else
+              # Start bot if not running
+              if [ -f ".env" ]; then
+                pm2 start bot.js --name "$APP"
+                echo "✅ Bot started: $APP"
+              else
+                echo "⚠️ Cannot start bot - .env file is missing!"
+                echo "Please create .env file and start manually:"
+                echo "  cd $BOT_PATH"
+                echo "  pm2 start bot.js --name $APP"
+              fi
+            fi
             
-            # Cleanup
-            echo "🧹 Cleaning up old releases and temporary files..."
-            rm -f /tmp/bot-deploy.tar.gz
-            # Keep the last 3 releases
-            ls -dt $RELEASES_DIR/* 2>/dev/null | tail -n +4 | xargs rm -rf
+            # Save PM2 configuration
+            pm2 save || true
             
-            echo "✅ Bot deployment complete!"
+            # Show bot status
+            echo "📊 Bot status:"
+            pm2 list | grep "$APP" || echo "Bot is not running"
+            
+            # Final verification
+            echo ""
+            echo "📁 Current structure:"
+            echo "  Production: $BOT_PATH"
+            ls -la "$BOT_PATH/.env" 2>/dev/null || echo "  ⚠️ .env is missing!"
+            
+            if [ -d "$BOT_PATH-old" ]; then
+              echo "  Backup: $BOT_PATH-old"
+            fi
+            
+            echo ""
+            echo "✅ Deployment completed!"
+      
+      # Final success notification
+      - name: Deployment summary
+        run: |
+          echo "🎉 BOT DEPLOYMENT COMPLETED!"
+          echo "================================"
+          echo "Commit: ${{ github.sha }}"
+          echo ""
+          echo "Important notes:"
+          echo "- The bot keeps only ONE previous version as backup"
+          echo "- The .env file is preserved from the current installation"
+          echo "- If this is the first deployment, create .env manually on server"
+          echo ""
+          echo "To check bot status:"
+          echo "  ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}"
+          echo "  pm2 logs ${{ secrets.PM2_APP_NAME_BOT }}"
