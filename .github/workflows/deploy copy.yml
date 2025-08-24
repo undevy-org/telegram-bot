@@ -1,6 +1,6 @@
-# Deploy Pipeline for Telegram Bot
+# Deploy Pipeline for Telegram Bot - ROBUST VERSION
 # Location: .github/workflows/deploy.yml
-# Purpose: Deploy bot to production using a reliable file-based key auth
+# Purpose: Deploy bot using atomic symlinks and a shared .env file
 
 name: Deploy Bot
 
@@ -21,17 +21,11 @@ jobs:
       - name: Create deployment package
         run: |
           echo "📦 Creating deployment package..."
-          # Create a tar archive of all necessary files
           tar -czf /tmp/bot-deploy.tar.gz \
-            --exclude='.git' \
-            --exclude='node_modules' \
-            --exclude='.env' \
-            --exclude='.github' \
-            --exclude='*.log' \
-            .
-          echo "✅ Package created: $(du -h /tmp/bot-deploy.tar.gz | cut -f1)"
+            --exclude='.git' --exclude='node_modules' --exclude='.env' \
+            --exclude='.github' --exclude='*.log' .
+          echo "✅ Package created"
       
-      # It writes the SSH key to a file instead of passing it as a variable.
       - name: Transfer package to server
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -41,16 +35,12 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          
-          # Add server to known hosts to avoid interactive prompts
           ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts 2>/dev/null
           
           echo "📤 Transferring bot package to server..."
           scp -i ~/.ssh/deploy_key /tmp/bot-deploy.tar.gz $SSH_USER@$SSH_HOST:/tmp/
-          
-          echo "✅ Package transferred successfully."
+          echo "✅ Package transferred."
 
-      # This step now only executes commands, auth is already done.
       - name: Deploy and restart bot on server
         uses: appleboy/ssh-action@master
         with:
