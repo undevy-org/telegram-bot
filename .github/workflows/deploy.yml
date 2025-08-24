@@ -33,24 +33,16 @@ jobs:
       
       # It writes the SSH key to a file instead of passing it as a variable.
       - name: Transfer package to server
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-        run: |
-          echo "🔑 Setting up SSH key file..."
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          
-          # Add server to known hosts to avoid interactive prompts
-          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts 2>/dev/null
-          
-          echo "📤 Transferring bot package to server..."
-          scp -i ~/.ssh/deploy_key /tmp/bot-deploy.tar.gz $SSH_USER@$SSH_HOST:/tmp/
-          
-          echo "✅ Package transferred successfully."
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "bot-deploy.tar.gz" # File from the runner's workspace
+          target: "/tmp" # Destination on the server
+          strip_components: 1
 
-      # This step now only executes commands, auth is already done.
+      # This step can now reliably find the file on the server
       - name: Deploy and restart bot on server
         uses: appleboy/ssh-action@master
         with:
@@ -64,7 +56,6 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
-            # --- MODIFIED: Define paths for releases and shared files ---
             APP_DIR="${{ secrets.DEPLOY_PATH_BOT }}"
             RELEASES_DIR="$APP_DIR/releases"
             SHARED_DIR="$APP_DIR/shared"
@@ -72,12 +63,10 @@ jobs:
             
             echo "🚀 Starting deployment on server..."
             
-            # --- MODIFIED: Create shared directory for persistent files ---
             echo "📁 Ensuring shared directory exists..."
             mkdir -p "$RELEASES_DIR"
             mkdir -p "$SHARED_DIR"
             
-            # --- NEW: Create a placeholder .env if it doesn't exist ---
             if [ ! -f "$SHARED_DIR/.env" ]; then
               echo "⚠️ .env file not found in shared directory. Creating a placeholder."
               echo "# Please fill this file with your bot's environment variables" > "$SHARED_DIR/.env"
@@ -87,10 +76,10 @@ jobs:
             echo "📦 Creating new release directory: $RELEASE_PATH"
             mkdir -p "$RELEASE_PATH"
             
+            # --- THE FIX IS HERE: The file is now at /tmp/bot-deploy.tar.gz on the server ---
             echo "📦 Extracting bot files..."
             tar -xzf /tmp/bot-deploy.tar.gz -C "$RELEASE_PATH"
             
-            # --- MODIFIED: Link the shared .env file into the new release ---
             echo "🔗 Linking shared .env file..."
             ln -sfn "$SHARED_DIR/.env" "$RELEASE_PATH/.env"
             
@@ -98,13 +87,11 @@ jobs:
             echo "📦 Installing production dependencies..."
             npm ci --omit=dev || npm install --production
             
-            # --- MODIFIED: Atomically switch the 'current' symlink ---
             echo "🔗 Activating new release..."
             ln -sfn "$RELEASE_PATH" "$APP_DIR/current"
             
             # Restart bot via PM2
             APP_NAME="${{ secrets.PM2_APP_NAME_BOT }}"
-            # --- MODIFIED: Point PM2 to the 'current' symlink ---
             PM2_ECOSYSTEM_FILE="$SHARED_DIR/ecosystem.config.js"
 
             # Create a PM2 ecosystem file for reliability
