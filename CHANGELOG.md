@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.1.0](https://github.com/undevy-org/telegram-bot/compare/v1.0.0...v1.1.0) (2025-08-25)
+
+
+### Features
+
+* add deployment notifications and version display in status ([b667425](https://github.com/undevy-org/telegram-bot/commit/b667425554ac38ed240b1fb261dde9233ef88961))
+
+
+### Bug Fixes
+
+* **ci:** make cleanup step in deploy workflow resilient ([c238688](https://github.com/undevy-org/telegram-bot/commit/c238688004b1c90c2ab6de70d6bea6d92258485a))
+* correct deployment logic to preserve .env file ([fe27b8b](https://github.com/undevy-org/telegram-bot/commit/fe27b8b426da5b6cf5aed5d010ad005d08326bac))
+* Deploy .env backup ([cf4f4d2](https://github.com/undevy-org/telegram-bot/commit/cf4f4d21aaefaa241e2a29e1e1b9075f5045b98a))
+* Deploy .env backup ([2b81da0](https://github.com/undevy-org/telegram-bot/commit/2b81da048649e91b602d87f90a15a8f24edfa267))
+* Deploy .env backup ([04b64cb](https://github.com/undevy-org/telegram-bot/commit/04b64cb809925fa5bcdd5f35b71c81514678212d))
+
 ## [1.0.0](https://github.com/undevy-org/telegram-bot/compare/v4.2.2...v1.0.0) (2025-08-23)
 
 
