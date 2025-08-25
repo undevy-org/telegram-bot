@@ -6,6 +6,9 @@ if (fs.existsSync('.env.local')) {
 }
 
 const { Bot } = require('grammy');
+const { version } = require('./package.json');
+const fsPromises = require('fs').promises;
+const path = require('path');
 
 const { TOKEN, ADMIN_USER_ID, ENABLE_ANALYTICS } = require('./config/constants');
 const authMiddleware = require('./middleware/auth');
@@ -14,6 +17,7 @@ const { setupCallbackHandlers } = require('./handlers/callbacks');
 const { handleConversation } = require('./handlers/conversations');
 const { registerCommands, analytics } = require('./commands');
 const AnalyticsMonitor = require('./analytics');
+const { escapeMarkdown } = require('./utils/format');
 
 if (!TOKEN) {
   console.error('[BOT] Missing TELEGRAM_BOT_TOKEN! Please check your .env file');
@@ -49,11 +53,70 @@ bot.on('message:text', async (ctx) => {
   }
 });
 
+async function sendDeploymentNotification() {
+  try {
+    // Format deployment time in Moscow timezone
+    const deployTime = new Date().toLocaleString('ru-RU', {
+      timeZone: 'Europe/Moscow',
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    });
+    
+    // Check if this is a new version deployment
+    const versionFile = path.join(__dirname, '.last-version');
+    let previousVersion = null;
+    let isNewVersion = false;
+    
+    try {
+      // Try to read previous version from file
+      previousVersion = await fsPromises.readFile(versionFile, 'utf8');
+      isNewVersion = previousVersion !== version;
+    } catch (error) {
+      // File doesn't exist, this is first deployment
+      isNewVersion = true;
+    }
+    
+    let message = '';
+    if (isNewVersion) {
+      // New version deployed message
+      message = `🚀 *New Deployment\\!*\n\n`;
+      message += `📦 *Version:* \`v${version}\`\n`;
+      if (previousVersion) {
+        message += `📤 *Previous:* \`v${previousVersion}\`\n`;
+      }
+      message += `⏰ *Time:* ${escapeMarkdown(deployTime)}\n`;
+      message += `✅ *Status:* Bot is running and ready for work\n\n`;
+      message += `Use /status to check the system\\.`;
+      
+      // Save current version for next comparison
+      await fsPromises.writeFile(versionFile, version);
+    } else {
+      // Bot restart without version change
+      message = `♻️ *Bot Restarted*\n\n`;
+      message += `📦 *Version:* \`v${version}\` \\(no changes\\)\n`;
+      message += `⏰ *Time:* ${escapeMarkdown(deployTime)}\n`;
+      message += `✅ *Status:* Bot is online again`;
+    }
+    
+    // Send notification to admin via Telegram
+    await bot.api.sendMessage(ADMIN_USER_ID, message, {
+      parse_mode: 'MarkdownV2'
+    });
+    
+    console.log(`[BOT] Deployment notification sent: v${version}`);
+  } catch (error) {
+    console.error('[BOT] Failed to send deployment notification:', error);
+    // Don't crash the bot if notification fails
+  }
+}
+
 bot.start({
   onStart: () => {
     console.log('[BOT] ✅ Bot started successfully!');
+    console.log(`[BOT] Version: v${version}`);
     console.log('[BOT] Waiting for messages...');
-    // MODIFIED: Only start analytics if enabled
+    
+    sendDeploymentNotification();
         if (ENABLE_ANALYTICS) {
             analyticsMonitor.start();
             console.log('[BOT] Analytics monitoring is enabled and started');
