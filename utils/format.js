@@ -47,9 +47,30 @@ function formatFileSize(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
+/**
+ * Formats uptime in seconds to human-readable string
+ * @param {number} seconds - Uptime in seconds
+ * @returns {string} - Formatted string like "2d 3h 15m"
+ */
+function formatUptime(seconds) {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  const parts = [];
+  if (days > 0) parts.push(`${days}д`);
+  if (hours > 0) parts.push(`${hours}ч`);
+  if (minutes > 0) parts.push(`${minutes}м`);
+  if (secs > 0 || parts.length === 0) parts.push(`${secs}с`);
+  
+  return parts.join(' ');
+}
+
 module.exports = {
   escapeMarkdown,
   formatDate,
   truncateText,
+  formatUptime,
   formatFileSize
 };

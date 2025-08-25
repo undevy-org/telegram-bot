@@ -3,6 +3,8 @@ const { escapeMarkdown, formatFileSize, formatDate } = require('../utils/format'
 const { getContent } = require('../services/api');
 const { withErrorHandling } = require('../handlers/errors');
 const stateManager = require('../stateManager');
+const { version } = require('../package.json');
+const { formatUptime } = require('../utils/format');
 
 /**
  * Handles /start and /help commands
@@ -61,6 +63,9 @@ const handleStatus = withErrorHandling(async (ctx) => {
   
   const caseCount = Object.keys(result.content.GLOBAL_DATA?.case_studies || {}).length;
   
+  const uptime = process.uptime();
+  const uptimeFormatted = formatUptime(uptime);
+  
   const statusMessage = `
 ${EMOJI.SUCCESS} *System Status*
 
@@ -71,7 +76,8 @@ ${EMOJI.SUCCESS} *System Status*
 \\- Last modified: ${escapeMarkdown(formatDate(result.stats.lastModified))}
 
 🔗 *System Info:*
-\\- Bot version: 2\\.0\\.0 \\(Modular\\)
+\\- Bot version: ${escapeMarkdown(version)}
+\\- Uptime: ${escapeMarkdown(uptimeFormatted)}
 \\- API status: Connected
 \\- Server time: ${escapeMarkdown(formatDate(result.timestamp))}
 
