@@ -5,13 +5,44 @@ const { withErrorHandling } = require('../handlers/errors');
 const stateManager = require('../stateManager');
 const { version } = require('../package.json');
 const { formatUptime } = require('../utils/format');
+const NavigationManager = require('../utils/navigationManager');
+const MessageEditor = require('../utils/messageEditor');
+
+// Initialize navigation components
+const navigationManager = new NavigationManager();
+const messageEditor = new MessageEditor();
 
 /**
  * Handles /start and /help commands
- * Shows welcome message and available commands
+ * Shows interactive main menu with navigation buttons
  */
-
 const handleStart = withErrorHandling(async (ctx) => {
+  const userId = ctx.from.id;
+  
+  // Initialize user state for navigation
+  stateManager.initUserState(userId);
+  
+  // Get main menu from navigation manager
+  const menuData = navigationManager.getMainMenu(userId);
+  
+  // Update navigation state
+  navigationManager.updateNavigationState(userId, menuData.menuState, 'Main Menu');
+  
+  // Send the interactive menu
+  const result = await messageEditor.updateMenuMessage(ctx, menuData);
+  
+  // Store message ID for future edits
+  if (result.success && result.messageId) {
+    navigationManager.setMessageId(userId, result.messageId);
+  }
+  
+  console.log(`[SYSTEM] User ${userId} started bot, showing main menu`);
+});
+
+/**
+ * Show text-based help as fallback or for power users
+ */
+const handleHelpText = withErrorHandling(async (ctx) => {
   const welcomeMessage = `
 🤖 *Portfolio Content Manager*
 
@@ -43,6 +74,8 @@ Available commands:
 \\- /cancel — Cancel active dialog
 \\- /skip — Skip optional field
 \\- /keep — Keep existing value \\(edit mode\\)
+
+💡 Use /start for interactive menu
 `;
 
   await ctx.reply(welcomeMessage, { parse_mode: 'MarkdownV2' });
@@ -149,6 +182,7 @@ const handleKeep = withErrorHandling(async (ctx) => {
 
 module.exports = {
   handleStart,
+  handleHelpText,
   handleStatus,
   handleCancel,
   handleSkip,
