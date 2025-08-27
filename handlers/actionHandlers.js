@@ -32,6 +32,7 @@ const actionHandlerMap = {
   'system_download': contentCommands.handleGet,
   'system_rollback': createRollbackHandler(),
   'system_cancel': systemCommands.handleCancel,
+  'system_help': systemCommands.handleHelpText, // Adding the missing help action
 
   // Help Actions
   'help_commands': systemCommands.handleHelpText,

@@ -278,8 +278,13 @@ class NavigationHandler {
       return;
     }
     
-    // Direct execution for non-destructive actions
-    await this.executeAction(ctx, userId, category, action);
+    // Convert nav callback to act callback format and execute through action handler
+    const actionCallbackData = `act_${category}_${action}`;
+    const success = await executeActionHandler(actionCallbackData, ctx);
+    
+    if (!success) {
+      console.warn(`[NAVIGATION] Failed to execute action: ${actionCallbackData}`);
+    }
   }
 
   /**
