@@ -1,0 +1,21 @@
+{
+  "GLOBAL_DATA": {
+    "case_studies": {
+      "test_case_1": {
+        "id": "test_case_1",
+        "title": "Test Case 1",
+        "description": "A test case for unit testing",
+        "url": "https://example.com/test-case-1",
+        "tags": ["test", "example"],
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    }
+  },
+  "profile1": {
+    "meta": {
+      "name": "Test Profile 1",
+      "cases": ["test_case_1"]
+    }
+  }
+}
