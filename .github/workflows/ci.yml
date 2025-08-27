@@ -84,6 +84,18 @@ jobs:
           timeout 5 node bot.js || true
           echo "✅ Bot code loads without syntax errors"
       
+      # Run Unit Tests
+      - name: Run Unit Tests
+        run: |
+          echo "🧪 Running unit tests..."
+          npm test
+          
+      # Generate Coverage Report
+      - name: Generate Coverage Report
+        run: |
+          npm run test:coverage
+          echo "📊 Test coverage generated"
+      
       # Summary
       - name: CI Summary
         run: |
@@ -93,3 +105,5 @@ jobs:
           echo "  ✓ Dependencies installed"
           echo "  ✓ Project structure verified"
           echo "  ✓ Bot code validated"
+          echo "  ✓ Unit tests passed"
+          echo "  ✓ Coverage report generated"
