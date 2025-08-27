@@ -1,5 +1,6 @@
 const { withErrorHandling } = require('./errors');
 const { EMOJI } = require('../config/constants');
+const { escapeMarkdown } = require('../utils/format');
 
 // Import all command handlers
 const contentCommands = require('../commands/content');
@@ -46,12 +47,13 @@ const actionHandlerMap = {
  */
 function createEditCaseHandler() {
   return withErrorHandling(async (ctx) => {
-    await ctx.reply(
-      `✏️ *Edit Case Study*\n\n` +
-      `Please enter the case ID you want to edit:\n\n` +
-      `💡 Use /list_cases to see all available cases`,
-      { parse_mode: 'MarkdownV2' }
-    );
+    const message = `✏️ *Edit Case Study*
+
+Please enter the case ID you want to edit:
+
+💡 Use /list\\_cases to see all available cases`;
+    
+    await ctx.reply(message, { parse_mode: 'MarkdownV2' });
     
     // Set a temporary state to capture the next message as case ID
     const stateManager = require('../stateManager');
@@ -71,13 +73,14 @@ function createEditCaseHandler() {
  */
 function createDeleteCaseHandler() {
   return withErrorHandling(async (ctx) => {
-    await ctx.reply(
-      `🗑️ *Delete Case Study*\n\n` +
-      `Please enter the case ID you want to delete:\n\n` +
-      `⚠️ This action cannot be undone!\n` +
-      `💡 Use /list_cases to see all available cases`,
-      { parse_mode: 'MarkdownV2' }
-    );
+    const message = `🗑️ *Delete Case Study*
+
+Please enter the case ID you want to delete:
+
+⚠️ This action cannot be undone\\!
+💡 Use /list\\_cases to see all available cases`;
+    
+    await ctx.reply(message, { parse_mode: 'MarkdownV2' });
     
     // Set a temporary state to capture the next message as case ID
     const stateManager = require('../stateManager');
@@ -97,12 +100,13 @@ function createDeleteCaseHandler() {
  */
 function createPreviewHandler() {
   return withErrorHandling(async (ctx) => {
-    await ctx.reply(
-      `👁️ *Preview Case Study*\n\n` +
-      `Please enter the case ID you want to preview:\n\n` +
-      `💡 Use /list_cases to see all available cases`,
-      { parse_mode: 'MarkdownV2' }
-    );
+    const message = `👁️ *Preview Case Study*
+
+Please enter the case ID you want to preview:
+
+💡 Use /list\\_cases to see all available cases`;
+    
+    await ctx.reply(message, { parse_mode: 'MarkdownV2' });
     
     // Set a temporary state to capture the next message as case ID
     const stateManager = require('../stateManager');
@@ -122,12 +126,13 @@ function createPreviewHandler() {
  */
 function createRollbackHandler() {
   return withErrorHandling(async (ctx) => {
-    await ctx.reply(
-      `↩️ *Rollback to Previous Version*\n\n` +
-      `Please enter the version number to rollback to:\n\n` +
-      `💡 Use the System Tools → Version History to see available versions`,
-      { parse_mode: 'MarkdownV2' }
-    );
+    const message = `↩️ *Rollback to Previous Version*
+
+Please enter the version number to rollback to:
+
+💡 Use the System Tools → Version History to see available versions`;
+    
+    await ctx.reply(message, { parse_mode: 'MarkdownV2' });
     
     // Set a temporary state to capture the next message as version number
     const stateManager = require('../stateManager');
