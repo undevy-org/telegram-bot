@@ -1,3 +1,4 @@
+const fetch = require('node-fetch');
 const { API_URL, API_TOKEN } = require('../config/constants');
 
 /**
@@ -24,7 +25,7 @@ async function callAPI(method, data = null) {
     const result = await response.json();
     
     if (!response.ok) {
-      throw new Error(result.error || 'API request failed');
+      throw new Error(result.error || `HTTP ${response.status}: ${response.statusText}`);
     }
     
     if (method === 'PUT' || method === 'PATCH') {
@@ -34,7 +35,13 @@ async function callAPI(method, data = null) {
     return result;
   } catch (error) {
     console.error('API Error:', error);
-    throw error;
+    if (error.code === 'ECONNREFUSED') {
+      throw new Error('Failed to connect to API server - is it running?');
+    }
+    if (error.message.includes('fetch failed')) {
+      throw new Error('Network error - check API URL and connectivity');
+    }
+    throw new Error(`Failed to ${method.toLowerCase()} content: ${error.message}`);
   }
 }
 

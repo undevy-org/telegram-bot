@@ -14,6 +14,7 @@ const { TOKEN, ADMIN_USER_ID, ENABLE_ANALYTICS } = require('./config/constants')
 const authMiddleware = require('./middleware/auth');
 const { setupErrorHandler } = require('./handlers/errors');
 const { setupCallbackHandlers } = require('./handlers/callbacks');
+const { setupNavigationHandlers } = require('./handlers/navigation');
 const { handleConversation } = require('./handlers/conversations');
 const { registerCommands, analytics } = require('./commands');
 const AnalyticsMonitor = require('./analytics');
@@ -42,6 +43,9 @@ console.log('[BOT] Commands registered');
 
 setupCallbackHandlers(bot);
 console.log('[BOT] Callback handlers configured');
+
+setupNavigationHandlers(bot);
+console.log('[BOT] Navigation handlers configured');
 
 bot.on('message:text', async (ctx) => {
   // First try to handle as part of conversation

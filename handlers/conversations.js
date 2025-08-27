@@ -4,6 +4,10 @@ const { escapeMarkdown, truncateText } = require('../utils/format');
 const { isValidCaseId, parseArrayInput, caseExists } = require('../utils/validators');
 const { getContent, updateContent } = require('../services/api');
 const { createBackup } = require('../services/backup');
+const ContentNavigationEnhancer = require('../utils/contentNavigationEnhancer');
+
+// Initialize content enhancer for better UX
+const contentEnhancer = new ContentNavigationEnhancer();
 
 /**
  * Main conversation handler - routes messages to appropriate handlers
@@ -20,6 +24,14 @@ async function handleConversation(ctx) {
       return handleAddCaseConversation(ctx, state);
     case 'edit_case':
       return handleEditCaseConversation(ctx, state);
+    case 'edit_case_prompt':
+      return handleEditCasePrompt(ctx, state);
+    case 'delete_case_prompt':
+      return handleDeleteCasePrompt(ctx, state);
+    case 'preview_case_prompt':
+      return handlePreviewCasePrompt(ctx, state);
+    case 'rollback_prompt':
+      return handleRollbackPrompt(ctx, state);
     default:
       return false;
   }
@@ -149,7 +161,31 @@ async function handleGenericStep(ctx, state, key, nextStep, isSkip, nextPrompt) 
   state.currentStep = nextStep;
   stateManager.updateUserState(userId, state);
 
-  await ctx.reply(`${EMOJI.SUCCESS} ${isSkip ? 'Skipped' : 'Saved'}\n\n${nextPrompt}\n(Use /skip to skip)`, { parse_mode: 'MarkdownV2' });
+  // Calculate progress for workflow
+  const stepNumbers = {
+    [stateManager.ADD_CASE_STATES.WAITING_ID]: 1,
+    [stateManager.ADD_CASE_STATES.WAITING_TITLE]: 2,
+    [stateManager.ADD_CASE_STATES.WAITING_DESC]: 3,
+    [stateManager.ADD_CASE_STATES.WAITING_METRICS]: 4,
+    [stateManager.ADD_CASE_STATES.WAITING_TAGS]: 5,
+    [stateManager.ADD_CASE_STATES.WAITING_CHALLENGE]: 6,
+    [stateManager.ADD_CASE_STATES.WAITING_APPROACH]: 7,
+    [stateManager.ADD_CASE_STATES.WAITING_SOLUTION]: 8,
+    [stateManager.ADD_CASE_STATES.WAITING_RESULTS]: 9,
+    [stateManager.ADD_CASE_STATES.WAITING_LEARNINGS]: 10
+  };
+  
+  const currentStepNum = stepNumbers[nextStep] || 1;
+  
+  // Show enhanced progress with navigation
+  await contentEnhancer.showWorkflowProgress(
+    ctx, 
+    'add_case', 
+    currentStepNum, 
+    10, 
+    nextPrompt
+  );
+  
   return true;
 }
 
@@ -158,7 +194,31 @@ async function promptNext(ctx, state, nextStep, message) {
   state.currentStep = nextStep;
   stateManager.updateUserState(userId, state);
 
-  await ctx.reply(`${message}\n(Use /skip to skip)`, { parse_mode: 'MarkdownV2' });
+  // Calculate progress for workflow
+  const stepNumbers = {
+    [stateManager.ADD_CASE_STATES.WAITING_ID]: 1,
+    [stateManager.ADD_CASE_STATES.WAITING_TITLE]: 2,
+    [stateManager.ADD_CASE_STATES.WAITING_DESC]: 3,
+    [stateManager.ADD_CASE_STATES.WAITING_METRICS]: 4,
+    [stateManager.ADD_CASE_STATES.WAITING_TAGS]: 5,
+    [stateManager.ADD_CASE_STATES.WAITING_CHALLENGE]: 6,
+    [stateManager.ADD_CASE_STATES.WAITING_APPROACH]: 7,
+    [stateManager.ADD_CASE_STATES.WAITING_SOLUTION]: 8,
+    [stateManager.ADD_CASE_STATES.WAITING_RESULTS]: 9,
+    [stateManager.ADD_CASE_STATES.WAITING_LEARNINGS]: 10
+  };
+  
+  const currentStepNum = stepNumbers[nextStep] || 1;
+  
+  // Show enhanced progress with navigation
+  await contentEnhancer.showWorkflowProgress(
+    ctx, 
+    'add_case', 
+    currentStepNum, 
+    10, 
+    message
+  );
+  
   return true;
 }
 
@@ -167,7 +227,31 @@ async function promptNextEdit(ctx, state, nextStep, message) {
   state.currentStep = nextStep;
   stateManager.updateUserState(userId, state);
 
-  await ctx.reply(`📝 ${message}`, { parse_mode: 'MarkdownV2' });
+  // Calculate progress for edit workflow
+  const editStepNumbers = {
+    [stateManager.EDIT_CASE_STATES.WAITING_CASE_ID]: 1,
+    [stateManager.EDIT_CASE_STATES.WAITING_TITLE]: 2,
+    [stateManager.EDIT_CASE_STATES.WAITING_DESC]: 3,
+    [stateManager.EDIT_CASE_STATES.WAITING_METRICS]: 4,
+    [stateManager.EDIT_CASE_STATES.WAITING_TAGS]: 5,
+    [stateManager.EDIT_CASE_STATES.WAITING_CHALLENGE]: 6,
+    [stateManager.EDIT_CASE_STATES.WAITING_APPROACH]: 7,
+    [stateManager.EDIT_CASE_STATES.WAITING_SOLUTION]: 8,
+    [stateManager.EDIT_CASE_STATES.WAITING_RESULTS]: 9,
+    [stateManager.EDIT_CASE_STATES.WAITING_LEARNINGS]: 10
+  };
+  
+  const currentStepNum = editStepNumbers[nextStep] || 1;
+  
+  // Show enhanced progress with navigation
+  await contentEnhancer.showWorkflowProgress(
+    ctx, 
+    'edit_case', 
+    currentStepNum, 
+    10, 
+    message
+  );
+  
   return true;
 }
 
@@ -195,10 +279,12 @@ async function saveCaseData(ctx, data) {
 
   await updateContent(content);
 
-  await ctx.reply(
-    `${EMOJI.SUCCESS} *Case successfully created!*\n\n` +
-    `📋 *Summary:*\n• ID: \`${escapeMarkdown(data.id)}\`\n• Title: ${escapeMarkdown(data.title || 'Not specified')}`,
-    { parse_mode: 'MarkdownV2' }
+  // Show success with navigation options
+  await contentEnhancer.showOperationSuccess(
+    ctx, 
+    'created', 
+    data.id, 
+    { backup: 'New backup created' }
   );
 }
 
@@ -225,7 +311,160 @@ async function updateExistingCase(ctx, data) {
 
   await updateContent(content);
 
-  await ctx.reply(`${EMOJI.SUCCESS} *Case "${escapeMarkdown(id)}" successfully updated!*`, { parse_mode: 'MarkdownV2' });
+  // Show success with navigation options
+  await contentEnhancer.showOperationSuccess(
+    ctx, 
+    'updated', 
+    id, 
+    { backup: 'Backup created with changes' }
+  );
+}
+
+// === Navigation Prompt Handlers ===
+
+/**
+ * Handle edit case prompt - waits for case ID input
+ */
+async function handleEditCasePrompt(ctx, state) {
+  const userId = ctx.from.id;
+  const caseId = ctx.message.text.trim();
+  
+  if (!caseId) {
+    await ctx.reply(
+      `${EMOJI.ERROR} Please enter a valid case ID\.
+
+` +
+      `Use /list\_cases to see available cases\.`,
+      { parse_mode: 'MarkdownV2' }
+    );
+    return true;
+  }
+  
+  // Clear prompt state and trigger edit command with the case ID
+  stateManager.clearUserState(userId);
+  
+  // Create a fake message with the edit case command
+  const fakeEditMessage = {
+    ...ctx.message,
+    text: `/edit_case ${caseId}`
+  };
+  
+  const fakeCtx = { ...ctx, message: fakeEditMessage };
+  
+  // Import and call the edit case handler
+  const contentCommands = require('../commands/content');
+  await contentCommands.handleEditCase(fakeCtx);
+  
+  return true;
+}
+
+/**
+ * Handle delete case prompt - waits for case ID input
+ */
+async function handleDeleteCasePrompt(ctx, state) {
+  const userId = ctx.from.id;
+  const caseId = ctx.message.text.trim();
+  
+  if (!caseId) {
+    await ctx.reply(
+      `${EMOJI.ERROR} Please enter a valid case ID\.
+
+` +
+      `Use /list\_cases to see available cases\.`,
+      { parse_mode: 'MarkdownV2' }
+    );
+    return true;
+  }
+  
+  // Clear prompt state and trigger delete command with the case ID
+  stateManager.clearUserState(userId);
+  
+  // Create a fake message with the delete case command
+  const fakeDeleteMessage = {
+    ...ctx.message,
+    text: `/delete_case ${caseId}`
+  };
+  
+  const fakeCtx = { ...ctx, message: fakeDeleteMessage };
+  
+  // Import and call the delete case handler
+  const contentCommands = require('../commands/content');
+  await contentCommands.handleDeleteCase(fakeCtx);
+  
+  return true;
+}
+
+/**
+ * Handle preview case prompt - waits for case ID input
+ */
+async function handlePreviewCasePrompt(ctx, state) {
+  const userId = ctx.from.id;
+  const caseId = ctx.message.text.trim();
+  
+  if (!caseId) {
+    await ctx.reply(
+      `${EMOJI.ERROR} Please enter a valid case ID\.
+
+` +
+      `Use /list\_cases to see available cases\.`,
+      { parse_mode: 'MarkdownV2' }
+    );
+    return true;
+  }
+  
+  // Clear prompt state and trigger preview command with the case ID
+  stateManager.clearUserState(userId);
+  
+  // Create a fake message with the preview command
+  const fakePreviewMessage = {
+    ...ctx.message,
+    text: `/preview ${caseId}`
+  };
+  
+  const fakeCtx = { ...ctx, message: fakePreviewMessage };
+  
+  // Import and call the preview handler
+  const contentCommands = require('../commands/content');
+  await contentCommands.handlePreview(fakeCtx);
+  
+  return true;
+}
+
+/**
+ * Handle rollback prompt - waits for version number input
+ */
+async function handleRollbackPrompt(ctx, state) {
+  const userId = ctx.from.id;
+  const versionInput = ctx.message.text.trim();
+  const versionNumber = parseInt(versionInput);
+  
+  if (!versionNumber || versionNumber < 1) {
+    await ctx.reply(
+      `${EMOJI.ERROR} Please enter a valid version number \(positive integer\)\.
+
+` +
+      `Use System Tools → Version History to see available versions\.`,
+      { parse_mode: 'MarkdownV2' }
+    );
+    return true;
+  }
+  
+  // Clear prompt state and trigger rollback command with the version number
+  stateManager.clearUserState(userId);
+  
+  // Create a fake message with the rollback command
+  const fakeRollbackMessage = {
+    ...ctx.message,
+    text: `/rollback ${versionNumber}`
+  };
+  
+  const fakeCtx = { ...ctx, message: fakeRollbackMessage };
+  
+  // Import and call the rollback handler
+  const contentCommands = require('../commands/content');
+  await contentCommands.handleRollback(fakeCtx);
+  
+  return true;
 }
 
 module.exports = {
